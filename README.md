@@ -5,7 +5,7 @@ slides for their courses. Students log in, pick a course, and ask questions.
 Answers are grounded in course material via RAG and streamed back in real time.
 
 Built because students ask the same questions repeatedly and TAs answer them manually,
-often outside office hours. Course material already exists — lecture slides, notes,
+often outside office hours. Course material already exists —> lecture slides, notes,
 assignment specs. TAssist puts it to work as a first-responder for student doubts,
 available 24/7.
 
