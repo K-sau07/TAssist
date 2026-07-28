@@ -1,0 +1,15 @@
+logging:
+  level:
+    root: INFO
+    com.tassist: DEBUG
+    org.springframework.web: INFO
+
+# CORS in dev allows the Vite frontend (spec §18.1).
+tassist:
+  cors:
+    allowed-origins: http://localhost:5173
+  jwt:
+    secret: ${TASSIST_JWT_SECRET:change_me_min_32_bytes_change_me_min_32_bytes}
+    ttl-hours: ${TASSIST_JWT_TTL_HOURS:24}
+  storage:
+    dir: ${TASSIST_STORAGE_DIR:./storage}

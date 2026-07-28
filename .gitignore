@@ -1,0 +1,29 @@
+# --- OS ---
+.DS_Store
+
+# --- Secrets ---
+.env
+
+# --- Backend (Java / Maven) ---
+backend/target/
+*.class
+*.jar
+*.war
+
+# --- Local file storage (uploaded bytes, never committed) ---
+backend/storage/
+storage/
+
+# --- Frontend (Node / Vite) ---
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
