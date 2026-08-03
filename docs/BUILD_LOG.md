@@ -32,6 +32,7 @@ until explicitly superseded by a later log entry.
 | D7 | Bucket4j coordinates | `com.bucket4j:bucket4j_jdk17-core:8.19.0` | Spec §6 implies Bucket4j but pins no version. `8.10.1` only exists under the legacy `bucket4j-core` id; the maintained JDK17+ line (`_jdk17-core`) starts at `8.19.0`. Appropriate for Java 21. |
 | D8 | Frontend build tool versions | Vite `6.4.3`, TypeScript `5.9.3`, ESLint (not oxlint) | `create-vite@9` scaffolds Vite 8 / TS 6 / oxlint. Pinned back to Vite 6 / TS 5 per §6 (spec locks Vite 6). Kept ESLint because §23 references `eslint-plugin-jsx-a11y`. |
 | D9 | shadcn/ui timing | Deferred to Step 15 | shadcn is a CLI that copies component source on demand, not a runtime npm dep. Radix/`clsx`/`tailwind-merge`/`cva` helpers installed now; `shadcn init` runs in Step 15 when components are themed and used. |
+| D10 | DC create_file unreliable | Use bash heredoc + verify | This session, Desktop Commander create_file/str_replace reported success but silently dropped writes; start_process hung repeatedly. Write files via `cat > f <<'EOF'` and confirm with `wc -l`. |
 
 ---
 
@@ -56,10 +57,27 @@ until explicitly superseded by a later log entry.
 
 Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ blocked
 
+### Standing acceptance gates (apply to every relevant step)
+
+- **G1 — Domain purity (§7).** `com.tassist.domain` must compile with ZERO framework
+  imports. Enforced mechanically, not by inspection: the following grep must return
+  no matches, or the step fails.
+  ```
+  grep -rEn 'import (org\.springframework|jakarta\.persistence|jakarta\.validation|com\.fasterxml\.jackson|org\.hibernate)' \
+    backend/src/main/java/com/tassist/domain/
+  ```
+  Run at the end of Step 1 and re-run after any later step that touches `domain/`.
+  (The one allowed framework-ish import anywhere inward is `jakarta.*` ONLY in
+  infrastructure adapters, never in domain.)
+- **G2 — Dependency direction.** No `domain` class imports from `application` or
+  `infrastructure`; no `application` class imports from `infrastructure`. Arrows point
+  inward only.
+
+
 | Step | Title | Status |
 |------|-------|--------|
 | 0 | Project scaffolding | ✅ |
-| 1 | Domain layer | ⬜ |
+| 1 | Domain layer | ✅ |
 | 2 | Persistence adapters + migrations | ⬜ |
 | 3 | Auth | ⬜ |
 | 4 | Files: upload + parse + persist + status | ⬜ |
@@ -123,3 +141,28 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Not yet done:** Tailwind/PostCSS config files, design tokens CSS, router, and app shell are intentionally left for Step 15 (frontend scaffolding) per §20 ordering — Step 0 only requires the empty app to start.
 
 **Next:** await user "go" for Step 1 (domain layer — every §8 record, §17.3 sealed errors, all `port/in` + `port/out` interfaces, unit tests for invariants).
+
+#### Step 1 — DONE & VERIFIED (2026-07-31)
+
+**Files shipped (71 domain files, zero framework imports):**
+- `domain/vo/` (15): 8 typed IDs (UserId, FileId, FolderId, ChatId, MessageId, ChannelId, MembershipId, ChunkId) each with null-guard + newId()/of() factories; 7 enums (AuthProvider, FileType, FileStatus, ChatScope, ChannelVisibility, MembershipStatus, MessageRole).
+- `domain/model/` (16): User, Folder, File, FolderFile, Chunk, SpreadsheetSheet, SpreadsheetRow, Chat, Message, Citation, Channel, ChannelFile, Membership, Note, TodoItem, QuotaUsage. Invariants in compact constructors.
+- `domain/error/` (12): sealed TassistError → AuthError (Unauthenticated, Forbidden, InvalidCredentials, EmailTaken), ValidationError (+details), NotFoundError, ConflictError, QuotaError (RateLimited, QuotaExceeded), UpstreamError (LlmFailure, EmbeddingFailure, Timeout), InternalError. Matches §17.3 permit lists exactly.
+- `domain/port/out/` (18): FileStorage, EmbeddingClient, DocumentParser, LLMClient + 14 repository ports (User, Folder, File, FolderFile, Chunk, Spreadsheet, Chat, Message, Channel, ChannelFile, Membership, Note, TodoItem, QuotaUsage).
+- `domain/port/in/` (10): AuthUseCase, TokenUseCase, FileUseCase, FolderUseCase, RetrievalUseCase, ChatUseCase, ChannelUseCase, MembershipUseCase, QuotaUseCase, WidgetUseCase.
+- `src/test/java/com/tassist/domain/model/` (3): UserTest (8), ChatTest (8), MembershipTest (6).
+
+**Verification:**
+- `mvn clean test` → BUILD SUCCESS; **Tests run: 22, Failures: 0, Errors: 0**.
+- Gate G1 (domain framework-import grep) → PASS (no matches).
+- Gate G2 (domain→application/infrastructure grep) → PASS (no matches).
+
+**Interpretations recorded (spec-faithful, made explicit):**
+- Behavioural invariants needing external state are intentionally NOT in records: Chat enforces only the structural scope rule (folderId/channelId presence per scope); "folder owned by ownerId" and "channel owner is approved member" are deferred to the application layer per §7.4.
+- Message record adds structural guards (only ASSISTANT carries citations; only USER carries mentionedFiles) — encoding §8's prose comments as invariants.
+- Membership state machine encoded as `Membership.canTransitionTo(target)` (pure, testable), matching §8 transitions.
+- Chunk.embedding may be null before the EMBEDDING stage; vector width is validated at persist time (Step 2/5), not in the record.
+
+**Environment quirk (NEW — D10):** In this session the Desktop Commander `create_file`/`str_replace` tools repeatedly reported success but did NOT persist to disk (6 in-port files + 3 test files silently lost), and `start_process` hung for 4+ min several times. Reliable path = bash heredoc (`cat > f <<'EOF'`) with immediate `wc -l` verification. Treat DC create_file as untrusted this session; always verify writes on disk.
+
+**Next:** await user "go" for Step 2 (Flyway V1–V8 per §9 + JPA entities/mappers + repository adapters + pgvector; Testcontainers slice tests).
