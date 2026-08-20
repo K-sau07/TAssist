@@ -1,11 +1,15 @@
 package com.tassist.infrastructure.web.file;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tassist.domain.port.out.EmbeddingClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -16,15 +20,41 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** File upload/list/status/delete over real Postgres + local-disk storage. */
+/** File upload/list/status/delete over real Postgres + local-disk storage.
+ *  Uses a deterministic fake EmbeddingClient so ingestion runs offline (no VOYAGE_API_KEY). */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers
+@org.springframework.context.annotation.Import(FileEndpointsTest.FakeEmbeddingConfig.class)
 class FileEndpointsTest {
+
+    /** Deterministic 1024-dim embedder for tests — no network, matches VECTOR(1024). */
+    @TestConfiguration
+    static class FakeEmbeddingConfig {
+        @Bean @Primary
+        EmbeddingClient fakeEmbeddingClient() {
+            return new EmbeddingClient() {
+                @Override public float[] embed(String text) {
+                    float[] v = new float[1024];
+                    int h = text.hashCode();
+                    for (int i = 0; i < v.length; i++) v[i] = ((h + i) % 100) / 100f;
+                    return v;
+                }
+                @Override public List<float[]> embedBatch(List<String> texts) {
+                    List<float[]> out = new ArrayList<>(texts.size());
+                    for (String t : texts) out.add(embed(t));
+                    return out;
+                }
+                @Override public int dimension() { return 1024; }
+            };
+        }
+    }
 
     @Container @ServiceConnection
     static PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(
@@ -52,19 +82,19 @@ class FileEndpointsTest {
     }
 
     @Test
-    void upload_then_status_is_parsing() throws Exception {
+    void upload_text_file_completes_to_ready_with_chunks() throws Exception {
         String token = tokenFor("f1_" + System.nanoTime() + "@example.com");
         String resp = mvc.perform(multipart("/api/files").file(txt("a.txt", "hello content"))
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.type").value("TXT"))
-            .andExpect(jsonPath("$.status").value("PARSING"))
+            .andExpect(jsonPath("$.status").value("READY"))
             .andReturn().getResponse().getContentAsString();
         String id = json.readTree(resp).get("id").asText();
 
         mvc.perform(get("/api/files/" + id + "/status").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value("PARSING"));
+            .andExpect(jsonPath("$.status").value("READY"));
     }
 
     @Test
