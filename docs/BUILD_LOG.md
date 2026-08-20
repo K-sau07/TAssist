@@ -212,3 +212,15 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Not yet done / deferred:** Real embedding client (Voyage) is Step 5; adapters accept `float[]` now. shadcn/frontend still Step 15.
 
 **Next:** await user "go" for Step 3 (auth: Google OAuth + email/password, JWT sessions, §10 endpoint authorization matrix, Step0SecurityConfig replacement). Reminder: apply D12 — lowercase email/username before repo lookups.
+
+
+#### Step 3 — IN PROGRESS (2026-08-20)
+
+**Sub-commits (granular convention):**
+- `ab4e698` **3.1** JWT support + stateless security config: jjwt 0.13.0 (D13), JwtProperties, TokenService (HS256 mint/verify, claims sub/email/iat/exp/jti), JwtAuthenticationFilter (Bearer header or `?access_token=`), SecurityConfig (stateless, bcrypt(12), permit `/api/auth/**`+health), deleted Step0SecurityConfig. Verified: boots, health 200, `/api/me` rejected.
+- `e127428` **3.2** Password auth: AuthService (signup/login/upsertGoogle/getById, validation per §10, D12 lowercasing), AuthController (§12.1 endpoints), AuthDtos, GlobalExceptionHandler (§17 table + §17.4 envelope), RestAuthEntryPoint (401 UNAUTHENTICATED). Verified via curl: signup→login→/api/me 201/200/200; 409/422/401/401 error paths all correct.
+- **3.4** Auth tests: `AuthServiceTest` (9, fast unit — fake repo + real bcrypt: validation rules, dedup, login success/failure, Google upsert idempotency, getById-missing) + `AuthEndpointsTest` (5, `@SpringBootTest`+MockMvc over Testcontainers Postgres: full signup→login→/api/me flow + 401/409/422 envelopes). Named `*Test` not `*IT` (project uses Surefire, no Failsafe). Full suite: **40 tests, 0 failures** (22 domain + 4 persistence + 9 + 5).
+
+**DEFERRED — 3.3 Google OAuth:** Needs real Google Cloud OAuth2 client ID/secret (user to provide). Endpoints `/api/auth/google/authorize` + `/api/auth/google/callback` and the `upsertGoogleUser` wiring are NOT yet built. `AuthService.upsertGoogleUser` already exists and is tested-ready. Redirect target on success: `{FRONTEND_URL}/auth/complete?token=<JWT>` (§12.1). Resume when creds available. Redirect URI to register: `http://localhost:8080/api/auth/google/callback`.
+
+**Step 3 acceptance status:** password half of §20 Step 3 acceptance MET (signup→login→/api/me via curl). Google-OAuth half PENDING (deferred). Step 3 stays open until 3.3 lands.
