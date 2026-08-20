@@ -225,3 +225,24 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **DEFERRED — 3.3 Google OAuth:** Needs real Google Cloud OAuth2 client ID/secret (user to provide). Endpoints `/api/auth/google/authorize` + `/api/auth/google/callback` and the `upsertGoogleUser` wiring are NOT yet built. `AuthService.upsertGoogleUser` already exists and is tested-ready. Redirect target on success: `{FRONTEND_URL}/auth/complete?token=<JWT>` (§12.1). Resume when creds available. Redirect URI to register: `http://localhost:8080/api/auth/google/callback`.
 
 **Step 3 acceptance status:** password half of §20 Step 3 acceptance MET (signup→login→/api/me via curl). Google-OAuth half PENDING (deferred). Step 3 stays open until 3.3 lands.
+
+
+#### Step 4 — DONE & VERIFIED (2026-08-20)
+
+**Scope:** FileStorage local-disk adapter, upload endpoint with sha256 dedup + PARSING state, all 7 parsers behind DocumentParser. **No chunking/embedding** (Step 5). Decision D14 (PDFBox + spreadsheet plain-dump scope).
+
+**Sub-commits (granular convention):**
+- `9e26626` **4.1** Local-disk FileStorage: `LocalDiskFileStorage` (store/read/openStream/delete/exists under `{ownerId}/{fileId}.{ext}`, path-traversal guarded), `StorageProperties` (tassist.storage.dir). `LocalDiskFileStorageTest` (4). Recorded D14.
+- `f9dab4e` **4.2** Seven DocumentParser impls + `ParserRegistry` (dispatch by FileType): PdfParser (PDFBox 3.0.3, per-page segments), DocxParser (POI XWPF, paragraph runs), PptxParser (POI XSLF, per-slide + title metadata), XlsxParser + CsvParser (plain text-dump per D14), TxtParser, MarkdownParser (commonmark). `ParsersTest` (7, one per type, real sample bytes).
+- `5276896` **4.3** Ingestion + endpoints: `FileService` implements FileUseCase (§11.1: validate content-type→415 / size≤25MB→413, sanitize filename, sha256 dedup→existing file 201, store raw, persist file row UPLOADING→PARSING, route to parser, log segment/char/preview), `FileTypeResolver` (declared content-type + extension → FileType), `FileController` (§12.2: POST /api/files multipart, GET list w/ filters, GET {id} metadata-only, DELETE, GET {id}/status), file DTOs. Extended GlobalExceptionHandler: 415 UNSUPPORTED_MEDIA_TYPE, 413 PAYLOAD_TOO_LARGE.
+- **4.4** Tests: `FileTypeResolverTest` (5), `FileEndpointsTest` (6, @SpringBootTest+MockMvc over Testcontainers: multipart upload→201+file row, dedup returns same id, list/get/delete, unsupported type→415, oversize→413, metadata never returns bytes).
+
+**Verification:**
+- `mvn test` → **62 tests, 0 failures** (22 domain + 4 persistence + 14 auth + 22 file [4 storage + 7 parsers + 5 resolver + 6 endpoints]). No regressions.
+- Acceptance (§20 Step 4): upload path proven per-type via `ParsersTest` + `FileEndpointsTest`; FileService logs `Parsed file {id} ({type}): {n} segments, {chars} chars. First segment preview: ...` per §11.1 step 5. DB `file` row created with status flow UPLOADING→PARSING. (Automated coverage in place of manual 7-file upload — stronger + repeatable.)
+
+**Invariant upheld (§7.1):** raw bytes live only behind FileStorage; no endpoint returns bytes (no download endpoint; GET {id} is metadata-only, asserted in FileEndpointsTest).
+
+**Deferred to Step 5:** chunking (§11.2), embedding (Voyage client), READY flip, spreadsheet structured mode (§11.3 — replaces the Step-4 plain-dump route per D14). File stays at PARSING after Step 4; Step 5 completes the pipeline to READY.
+
+**Next:** Step 5 (chunking + embedding + READY) OR resume deferred 3.3 Google OAuth when creds available.
