@@ -58,6 +58,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", e.getMessage(), null);
     }
 
+    @ExceptionHandler(com.tassist.infrastructure.security.OAuthException.class)
+    public ResponseEntity<ApiError> oauth(com.tassist.infrastructure.security.OAuthException e) {
+        return build(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Google sign-in failed.", null);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> fallback(Exception e) {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL", "Something went wrong.", null);

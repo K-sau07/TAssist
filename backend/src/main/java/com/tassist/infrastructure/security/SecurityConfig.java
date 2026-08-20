@@ -17,7 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * Ownership/membership checks happen in the application layer, not here.
  */
 @Configuration
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, GoogleOAuthProperties.class})
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
