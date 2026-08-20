@@ -1,0 +1,60 @@
+package com.tassist.infrastructure.web.error;
+
+import com.tassist.domain.error.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.Map;
+import java.util.UUID;
+
+/** Maps domain errors to §17.4 envelopes with the §17 status/code table. */
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ValidationError.class)
+    public ResponseEntity<ApiError> validation(ValidationError e) {
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_ERROR", e.getMessage(), e.details());
+    }
+
+    @ExceptionHandler(EmailTaken.class)
+    public ResponseEntity<ApiError> emailTaken(EmailTaken e) {
+        return build(HttpStatus.CONFLICT, "EMAIL_TAKEN", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(InvalidCredentials.class)
+    public ResponseEntity<ApiError> invalidCreds(InvalidCredentials e) {
+        return build(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(Unauthenticated.class)
+    public ResponseEntity<ApiError> unauth(Unauthenticated e) {
+        return build(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(Forbidden.class)
+    public ResponseEntity<ApiError> forbidden(Forbidden e) {
+        return build(HttpStatus.FORBIDDEN, "FORBIDDEN", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(NotFoundError.class)
+    public ResponseEntity<ApiError> notFound(NotFoundError e) {
+        return build(HttpStatus.NOT_FOUND, "NOT_FOUND", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(ConflictError.class)
+    public ResponseEntity<ApiError> conflict(ConflictError e) {
+        return build(HttpStatus.CONFLICT, "CONFLICT", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> fallback(Exception e) {
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL", "Something went wrong.", null);
+    }
+
+    private ResponseEntity<ApiError> build(HttpStatus status, String code, String msg, Map<String, String> details) {
+        String correlationId = UUID.randomUUID().toString();
+        return ResponseEntity.status(status).body(ApiError.of(code, msg, details, correlationId));
+    }
+}
