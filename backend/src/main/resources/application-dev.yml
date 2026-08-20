@@ -18,3 +18,8 @@ tassist:
     client-id: ${GOOGLE_CLIENT_ID:}
     client-secret: ${GOOGLE_CLIENT_SECRET:}
     redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/api/auth/google/callback}
+  embedding:
+    voyage:
+      api-key: ${VOYAGE_API_KEY:}
+      model: ${VOYAGE_MODEL:voyage-3.5}
+      dimension: ${VOYAGE_DIMENSION:1024}
