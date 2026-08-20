@@ -13,6 +13,19 @@
 >    any deviations/decisions with rationale.
 > 4. Never silently re-decide something already recorded here. If a past decision
 >    needs changing, add a new entry that supersedes it and say so explicitly.
+>
+> **Commit convention (from Step 3 onward, 2026-08-20):**
+> - Commit granularly *within* a step at every point the project compiles green —
+>   NOT one giant commit per step. A Step-2-sized chunk should be ~3–6 commits.
+> - Hard rule: **every commit must compile** (`mvn -q compile` clean); a commit that
+>   introduces tests must pass them. Never commit a broken build. Order sub-commits so
+>   each is self-consistent (e.g. entities+mappers together, not entities alone).
+> - Message format: `Step N.M: <what>` (e.g. `Step 3.1: JWT support + security config`).
+>   The step's BUILD_LOG entry + final "DONE & VERIFIED" reconciliation still happens
+>   once, in the last sub-commit of the step.
+> - Push after each green sub-commit (or at least at end of step). Working tree stays
+>   clean between sub-commits.
+> - Steps 0–2 were single-commit (8016c2e, 47b6360, 554e06d); that's fine, not retro-split.
 
 ---
 
