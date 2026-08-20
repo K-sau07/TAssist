@@ -48,6 +48,16 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "CONFLICT", e.getMessage(), null);
     }
 
+    @ExceptionHandler(UploadExceptions.UnsupportedMediaType.class)
+    public ResponseEntity<ApiError> unsupportedMedia(UploadExceptions.UnsupportedMediaType e) {
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(UploadExceptions.PayloadTooLarge.class)
+    public ResponseEntity<ApiError> payloadTooLarge(UploadExceptions.PayloadTooLarge e) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", e.getMessage(), null);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> fallback(Exception e) {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL", "Something went wrong.", null);
