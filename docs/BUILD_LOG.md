@@ -27,12 +27,14 @@ until explicitly superseded by a later log entry.
 | D2 | Old backend code | Wiped, archived | Pre-existing code implemented the old README "Course/Lecture/Slide" model, incompatible with the File/Folder/Channel spec. Archived to `/tmp/tassist-old-backend-20260728-164016.tgz` before deletion. Untracked in git, so no history lost. (User confirmed 2026-07-28.) |
 | D3 | JDK for Maven builds | Temurin 21 | Spec §6 locks Java 21. PATH default is JDK 23 and Homebrew Maven runs on JDK 25 — neither matches. Pin `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home` for every `mvn` invocation. |
 | D4 | Node for frontend | nvm Node 20 (`v20.20.1`) | Spec §6 locks Node 20 LTS; Vite 6 requires Node 20+. PATH default is Node 18.17.0. Use nvm to select 20 for all frontend commands. |
-| D5 | Embedding provider | **UNRESOLVED — decide before Step 5** | Spec §21 open Q#1: Voyage `voyage-3` (1024-dim) vs OpenAI `text-embedding-3-small` (1536-dim). Load-bearing: sets `VECTOR(n)` in migrations V4/V5 and cannot change after data exists. Spec default assumption = Voyage 1024. |
+| D5 | Embedding provider | **RESOLVED (2026-08-20): Voyage `voyage-3.5`, 1024-dim.** | Spec §21 open Q#1. Chose Voyage over OpenAI: (a) spec-aligned (least deviation); (b) best retrieval quality for mixed-domain grounded RAG — voyage-3-large beats OpenAI-v3-large ~10.6% at 1024 dims; (c) 200M free tokens covers all of Phase 1; (d) 1024 is a valid Matryoshka width for BOTH providers, so OpenAI remains a truncate-to-1024 fallback with no schema change. Picked `voyage-3.5` (not the newer `voyage-4`, Jan 2026) deliberately: stable, documented, 1024-native, avoids betting the schema on the newest model pre-retrieval-testing. Spec named `voyage-3`; 3.5 supersedes it (better quality/context, same 1024 default). Sets `VECTOR(1024)` in V4/V5. |
 | D6 | Spring AI Anthropic artifact | `spring-ai-starter-model-anthropic` on BOM `1.0.9` | Spec §20 named the pre-GA id `spring-ai-anthropic-spring-boot-starter`, which does not exist in Central. Renamed at Spring AI 1.0.0 GA. |
 | D7 | Bucket4j coordinates | `com.bucket4j:bucket4j_jdk17-core:8.19.0` | Spec §6 implies Bucket4j but pins no version. `8.10.1` only exists under the legacy `bucket4j-core` id; the maintained JDK17+ line (`_jdk17-core`) starts at `8.19.0`. Appropriate for Java 21. |
 | D8 | Frontend build tool versions | Vite `6.4.3`, TypeScript `5.9.3`, ESLint (not oxlint) | `create-vite@9` scaffolds Vite 8 / TS 6 / oxlint. Pinned back to Vite 6 / TS 5 per §6 (spec locks Vite 6). Kept ESLint because §23 references `eslint-plugin-jsx-a11y`. |
 | D9 | shadcn/ui timing | Deferred to Step 15 | shadcn is a CLI that copies component source on demand, not a runtime npm dep. Radix/`clsx`/`tailwind-merge`/`cva` helpers installed now; `shadcn init` runs in Step 15 when components are themed and used. |
 | D10 | DC create_file unreliable | Use bash heredoc + verify | This session, Desktop Commander create_file/str_replace reported success but silently dropped writes; start_process hung repeatedly. Write files via `cat > f <<'EOF'` and confirm with `wc -l`. |
+| D11 | Vector + JSONB entity mapping | `org.hibernate.orm:hibernate-vector:${hibernate.version}` (=6.5.3.Final, explicit — BOM does NOT manage this module) + native `@JdbcTypeCode(SqlTypes.JSON)` for JSONB | Spec §9 defines `vector(1024)` and JSONB columns but §20's Step 2 dep list didn't name a mapping lib. Vectors via hibernate-vector `@JdbcTypeCode(SqlTypes.VECTOR)` + `@Array(length=1024)`. JSONB via **native** `@JdbcTypeCode(SqlTypes.JSON)` on Map/List/record fields — Hibernate serializes with Jackson, no custom AttributeConverters (an initial converter approach was tried and removed: converters bind as `varchar`, which Postgres won't implicitly cast to `jsonb` — proven at runtime). Only `CitationJson` record kept in `support/`. `com.pgvector:pgvector:0.1.6` stays for raw native-query paths. (User chose "hibernate-vector + native JSONB", 2026-08-20.) |
+| D12 | CITEXT case-folding vs JDBC varchar binding | Callers MUST lowercase email/username before calling repos (port contract already says `emailLowercased`/`usernameLowercased`) | Proven at runtime: `citext = varchar` comparison is case-SENSITIVE because Hibernate binds String params as `varchar`, defeating CITEXT's case-folding. Native `citext = citext` folds case correctly. The CITEXT columns (app_user.email, channel.username) are defense-in-depth, NOT the primary case-insensitivity mechanism. Step 3 AuthService and any username lookup must `.toLowerCase()` the argument before calling `findByEmail`/`findByUsername`/`existsBy*`. Domain already stores lowercased (User invariant), so this only affects query-side callers. |
 
 ---
 
@@ -166,3 +168,33 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Environment quirk (NEW — D10):** In this session the Desktop Commander `create_file`/`str_replace` tools repeatedly reported success but did NOT persist to disk (6 in-port files + 3 test files silently lost), and `start_process` hung for 4+ min several times. Reliable path = bash heredoc (`cat > f <<'EOF'`) with immediate `wc -l` verification. Treat DC create_file as untrusted this session; always verify writes on disk.
 
 **Next:** await user "go" for Step 2 (Flyway V1–V8 per §9 + JPA entities/mappers + repository adapters + pgvector; Testcontainers slice tests).
+
+
+#### Step 2 — DONE & VERIFIED (2026-08-20)
+
+**Scope:** Flyway V1–V8 (§9), JPA entities + mappers, repository adapters for all 14 outbound ports, pgvector + JSONB mapping, Testcontainers slice tests. Resolved D5 (embedding provider) first, as its dimension is load-bearing for V4/V5.
+
+**Files shipped:**
+- **Migrations (8):** `V1__init` (extensions pgcrypto/citext/vector + 7 enum types) → `V2__users` → `V3__folders_files` → `V4__chunks` (`vector(1024)`, ivfflat cosine) → `V5__spreadsheet` (sheet `vector(1024)` + rows, gin on values) → `V6__channels` (+ channel_file, membership) → `V7__chats` (+ message) → `V8__widgets_and_quota` (note, todo_item, quota_usage).
+- **Support (1):** `CitationJson` record (persisted shape of message.citations elements). Initial AttributeConverters were written then removed — see D11.
+- **Entities (15 + 3 IdClasses):** one per table; `SpreadsheetSheetEntity`/`SpreadsheetRowEntity` split under one aggregate. Vectors via `@JdbcTypeCode(SqlTypes.VECTOR)` + `@Array(length=1024)`; enums via `@JdbcTypeCode(SqlTypes.NAMED_ENUM)`; JSONB via `@JdbcTypeCode(SqlTypes.JSON)`. IdClasses: FolderFileId, ChannelFileId, QuotaUsageId. No-arg ctors are `public` (mappers build entities cross-package).
+- **Mappers (15):** static pure entity↔domain-record; VO wrap/unwrap, Optional↔nullable, enum name-match, YearMonth↔DATE (quota), citation/mentioned-file JSON rebuild.
+- **Spring Data repos (15):** `JpaRepository` interfaces with derived queries + `@Modifying` deletes for chunk/message/sheet by-parent.
+- **Port adapters (14):** `@Repository` beans implementing every §7 outbound port. Vector search (`ChunkRepositoryAdapter.searchSimilar`, `SpreadsheetRepositoryAdapter.searchSimilarSheets`) via native pgvector `<=>` cosine (similarity = 1 − distance), restricted to candidate file IDs, ordered + limited.
+- **Config:** `application.yml` Flyway `enabled: true`, `locations: classpath:db/migration`. `pom.xml` +`hibernate-vector` (D11), +`spring-boot-testcontainers` (test).
+- **Tests (2):** `AbstractPgvectorContainerTest` (`@SpringBootTest` + `@ServiceConnection` on `pgvector/pgvector:pg16`, Flyway on), `PersistenceRoundTripTest` (4 tests).
+
+**Verification:**
+- Migrations applied cleanly against real pgvector Postgres (both in-app on the dev DB → schema at v8, and in the Testcontainers image). 15 tables + 7 enums; both vector columns confirmed `vector(1024)`.
+- `mvn test` → **BUILD SUCCESS. Tests run: 26, Failures: 0, Errors: 0** (Step 1 domain 22 + Step 2 persistence 4, no regressions).
+- Round-trip proofs: User (enum + citext), **Chunk vector(1024) save + cosine similarity ranks nearest first**, **Message JSONB citations + mentioned_files**, QuotaUsage (YearMonth↔DATE composite key).
+
+**Decisions/deviations recorded this step:** D5 RESOLVED (Voyage voyage-3.5, 1024). D11 (hibernate-vector + native JSON mapping; converters tried and dropped). D12 (CITEXT case-folding lost under varchar binding → callers must lowercase).
+
+**Interpretations recorded (spec-faithful):**
+- Vector-search result Chunks are returned minimal (text + similarity; empty metadata, null embedding) — retrieval scoring (§11.4) needs text + score, not the full row. Full chunk hydration is not required on the search path.
+- `folder.updated_at` set = `created_at` on insert (domain Folder has no updatedAt; immutable until a rename in a later step).
+
+**Not yet done / deferred:** Real embedding client (Voyage) is Step 5; adapters accept `float[]` now. shadcn/frontend still Step 15.
+
+**Next:** await user "go" for Step 3 (auth: Google OAuth + email/password, JWT sessions, §10 endpoint authorization matrix, Step0SecurityConfig replacement). Reminder: apply D12 — lowercase email/username before repo lookups.

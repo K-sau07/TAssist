@@ -19,7 +19,9 @@ spring:
 
   # Flyway is wired in Step 2 (migrations V1-V8). Disabled until then.
   flyway:
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
 
   data:
     redis:
