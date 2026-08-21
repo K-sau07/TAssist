@@ -1,0 +1,53 @@
+/* TAssist design tokens — verbatim from spec §15.2–15.4. Do not invent new ones. */
+:root {
+  /* Surfaces */
+  --tassist-bg:            #FDFAF4;
+  --tassist-bg-elev:       #FFFFFF;
+  --tassist-bg-sunken:     #F3EEE4;
+  --tassist-border:        #E6DFD1;
+  --tassist-border-strong: #D3C9B4;
+
+  /* Text */
+  --tassist-text:          #1E1B2E;
+  --tassist-text-muted:    #5A566B;
+  --tassist-text-faint:    #8F8AA1;
+  --tassist-text-inverse:  #FDFAF4;
+
+  /* Brand */
+  --tassist-primary:       #3E2A93;
+  --tassist-primary-hover: #4A34AE;
+  --tassist-primary-fg:    #FFFFFF;
+
+  /* Accents */
+  --tassist-accent-peach:  #FFB199;
+  --tassist-accent-mint:   #A8E6C6;
+  --tassist-accent-amber:  #F4B400;
+  --tassist-accent-rose:   #E86A6A;
+
+  /* Semantic */
+  --tassist-success:  var(--tassist-accent-mint);
+  --tassist-warning:  var(--tassist-accent-amber);
+  --tassist-danger:   var(--tassist-accent-rose);
+
+  /* Type scale (fluid) */
+  --font-2xs: clamp(11px, 0.7vw, 12px);
+  --font-xs:  clamp(12px, 0.8vw, 13px);
+  --font-sm:  clamp(13px, 0.9vw, 14px);
+  --font-md:  clamp(15px, 1.0vw, 16px);
+  --font-lg:  clamp(17px, 1.15vw, 18px);
+  --font-xl:  clamp(20px, 1.4vw, 22px);
+  --font-2xl: clamp(24px, 1.8vw, 28px);
+  --font-3xl: clamp(32px, 2.6vw, 40px);
+  --font-4xl: clamp(44px, 4vw, 64px);
+
+  /* Radii */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-round: 999px;
+
+  /* Shadows */
+  --shadow-1: 0 1px 2px rgba(30,27,46,0.06), 0 1px 0 rgba(30,27,46,0.04);
+  --shadow-2: 0 8px 32px rgba(30,27,46,0.12), 0 2px 6px rgba(30,27,46,0.08);
+}
