@@ -338,3 +338,27 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Deferred:** CHANNEL scope (D18) → wire when channels land. MentionResolver is built but not yet called anywhere — the message/chat layer (Step 10) will invoke it before retrieve.
 
 **Next:** Step 9 (LLM client + non-streaming generation).
+
+
+#### Step 9 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** LLMClient port + Anthropic adapter + non-streaming generation (§11.5 prompts, §11.6 non-stream path). LLMClient port (LlmRequest/LlmResponse/LlmMessage/ToolSpec/StreamEvents) already existed from Step 2.
+
+**Note on session continuity:** 9.1–9.3 were built + committed by a prior session (commits below) but never pushed or closed — local was 1 commit ahead of remote and there was no BUILD_LOG entry. This session ran the key-gated 9.4 live acceptance (ANTHROPIC_API_KEY was empty until now), then closed and pushed. Verified the prior work compiles + all its unit tests pass before proceeding; did not rebuild it.
+
+**Sub-commits (granular convention):**
+- `af70f7d` **9.1** `PromptBuilder` (§11.5 exact text: grounded / fallback / regular; spreadsheet-tool addendum) + `CitationLabeler` (§11.8 private-library labels: filename + positional hint from chunk metadata — page/¶/slide/heading/section). `PromptBuilderTest` (4) + `CitationLabelerTest` (6).
+- `e6b3498` **9.2** `AnthropicLLMClient` — direct Messages API via RestClient (mirrors Voyage adapter, D6), full control over system/messages/tools + usage tokens; fail-fast IllegalStateException on missing key; UpstreamError.LlmFailure on API/parse error. `AnthropicProperties` (tassist.ai.anthropic.*: model claude-haiku-4-5, version 2023-06-01, maxTokens 1024) + `AnthropicConfig`. stream() throws UnsupportedOperationException (Step 11).
+- `e47a93e` **9.3** `GenerationService` — non-streaming mode selection: REGULAR (pure), GROUNDED (retrieval hits), FALLBACK (no hits OR grounded returned the INSUFFICIENT sentinel → rerun in fallback, token cost summed across both calls). Builds numbered §11.8-labelled sources. `GenerationServiceTest` (5, fake LLM: mode selection + sentinel→fallback rerun + token summing).
+
+**9.4 — live §20 acceptance VERIFIED (2026-08-21):**
+- Model id `claude-haiku-4-5` confirmed current (resolves to snapshot claude-haiku-4-5-20251001).
+- `GenerationLiveAcceptanceTest` (Testcontainers + REAL Voyage embed + REAL Claude call; @EnabledIfEnvironmentVariable ANTHROPIC_API_KEY so it self-skips offline): ingested a fixture chunk (leave policy: "27 days ... plus 3 floating holidays"), retrieved via MENTIONS scope, generated grounded. Result:
+  "Full-time employees at TAssist receive exactly 27 days of paid vacation per calendar year, plus 3 floating holidays [S1]." — mode=GROUNDED, in=316/out=34 tokens.
+- Assertions passed: answer contains [S1], contains "27" (fact from excerpt only), mode GROUNDED, outputTokens>0.
+
+**Note (same as Step 5/6):** Spring does not read `.env` natively — live run sources it first (`set -a; . .env; set +a`) so ANTHROPIC_API_KEY + VOYAGE_API_KEY resolve. The offline suite is unaffected (live test self-skips without the key).
+
+**Verification:** live acceptance as above; full offline suite **145 tests, 0 failures** (was 130; +15 Step 9 unit tests). Live test is the 146th (env-gated).
+
+**Next:** Step 10 (chat endpoints — non-streaming). MentionResolver (built Step 8, D17) gets wired here before retrieve.
