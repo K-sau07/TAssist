@@ -23,3 +23,8 @@ tassist:
       api-key: ${VOYAGE_API_KEY:}
       model: ${VOYAGE_MODEL:voyage-3.5}
       dimension: ${VOYAGE_DIMENSION:1024}
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      model: ${TASSIST_CHAT_MODEL:claude-haiku-4-5}
+      max-tokens: ${TASSIST_CHAT_MAX_TOKENS:1024}
