@@ -76,6 +76,33 @@ public class GenerationService {
         return new GenerationOutcome(r.content(), Mode.GROUNDED, r.inputTokens(), r.outputTokens(), warnings);
     }
 
+    /**
+     * Streaming support (§11.6): resolve the prompt mode + the LlmRequest to stream, WITHOUT calling
+     * the LLM. ChatStreamService uses this so streaming shares mode-selection with non-stream.
+     * Returns GROUNDED (with sources), FALLBACK, or REGULAR. Grounded→sentinel rerun is handled by
+     * the streaming caller (it can only detect the sentinel after the stream completes).
+     */
+    public record Plan(Mode mode, com.tassist.domain.port.out.LLMClient.LlmRequest request,
+                       List<PromptBuilder.Source> sources) {}
+
+    public Plan plan(String question, RetrievalResult retrieval, boolean regularScope) {
+        if (regularScope) {
+            return new Plan(Mode.REGULAR, prompts.regular(question), List.of());
+        }
+        boolean haveHits = retrieval != null
+            && (!retrieval.textHits().isEmpty() || !retrieval.spreadsheetHits().isEmpty());
+        if (!haveHits) {
+            return new Plan(Mode.FALLBACK, prompts.fallback(question), List.of());
+        }
+        List<PromptBuilder.Source> sources = buildSources(retrieval.textHits());
+        return new Plan(Mode.GROUNDED, prompts.grounded(question, sources), sources);
+    }
+
+    /** Fallback request builder, exposed for the streaming sentinel rerun. */
+    public com.tassist.domain.port.out.LLMClient.LlmRequest fallbackRequest(String question) {
+        return prompts.fallback(question);
+    }
+
     private GenerationOutcome runFallback(String question, List<String> warnings) {
         LlmResponse r = llm.complete(prompts.fallback(question));
         return new GenerationOutcome(r.content(), Mode.FALLBACK, r.inputTokens(), r.outputTokens(), warnings);
