@@ -458,23 +458,3 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Deviations:** D20 (in-memory Bucket4j, Redis-distributed deferred). Token quota is warn-only per §16.2 (not hard-blocked in Phase 1).
 
 **Next:** Step 14 (widgets — notes + todos endpoints).
-
-
-#### Step 13 — DONE & VERIFIED (2026-08-21)
-
-**Scope:** Monthly quotas (§16.2) + short-window rate limiting (§16.1) + GET /api/quota. Quota domain/persistence pre-existed; usage was already being written since Step 10.
-
-**Sub-commits:**
-- `84a9eba` **13.1-13.2** `QuotaService` (§16.2 limits: 50 files/mo, 500 MB total, 500 questions/mo, 25 MB single file, token warn at 1M — all @Value-configurable). Enforcement wired: question check + recording routed through QuotaService in ChatStreamService; upload check+record in FileController. QuotaError→429 mapping added to GlobalExceptionHandler (QUOTA_EXCEEDED plain 429; RATE_LIMITED with Retry-After header + retryAfterSeconds body). `QuotaController` GET /api/quota (usage vs limits).
-- `290b98f` **13.3** `RateLimitFilter` (in-memory Bucket4j, D20) + `RateLimitRule`: §16.1 table (login 10/6s per IP, signup 5/60s per IP, upload 20/60s per user, stream 30/10s per user, join 5/300s per user, global 200/1s per user). Keyed by userId (or IP for per-IP rules); first-match-wins; 429 + Retry-After on breach. `tassist.ratelimit.enabled` toggle (off in tests so endpoint tests don't fight the limiter).
-- `<this>` **13.4** Moved the question quota check from the stream *thread* into the controller (before the SseEmitter opens) so QuotaExceeded surfaces as a clean HTTP 429 rather than a mid-stream SSE error event. Recording stays in the stream (after generation).
-
-**Live acceptance VERIFIED (2026-08-21):**
-- Rate limit: fired repeated POST /api/auth/signup → after the per-IP budget, `429 RATE_LIMITED` with body `{code, message, retryAfterSeconds:59, correlationId}` and `Retry-After: 59` header. Matches §16.1.
-- Quota: backend started with `--tassist.quota.max-questions-per-month=1`; Q1 streamed to `done`, Q2 returned clean `HTTP 429 QUOTA_EXCEEDED` body `{code:"QUOTA_EXCEEDED", message:"Monthly question limit reached (1/1).", correlationId}` before the stream opened. Matches §16.2.
-
-**Verification:** full suite **193 tests, 0 failures, 1 skipped**. Live 429 acceptances as above.
-
-**Deviations:** D20 (in-memory Bucket4j, Redis-distributed deferred). Token quota is warn-only per §16.2 (not hard-blocked in Phase 1).
-
-**Next:** Step 14 (widgets — notes + todos endpoints).
