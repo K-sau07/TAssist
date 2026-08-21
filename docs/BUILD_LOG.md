@@ -433,3 +433,8 @@ Owner signs up → creates channel @cs101 → attaches file as "Course Syllabus"
 **Deferred:** channel analytics endpoints (D19). Non-stream channel message endpoint not added (spec only defines the stream variant for channel chat).
 
 **Next:** Step 13 (quotas + rate limiting).
+
+
+#### Deviation D20 (2026-08-21) — Rate limiting uses in-memory Bucket4j (Redis-distributed deferred)
+
+Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom carries `bucket4j_jdk17-core` (core, in-memory) only — not the distributed/Redis Bucket4j module. For Phase 1 (single-instance personal deployment) in-memory token buckets keyed by userId/IP are correct and sufficient; the §16.1 limits, 429 body shape, and Retry-After header are all honored. Distributed (Redis-backed) buckets are deferred until/if the app runs multi-instance. Product behavior unchanged.
