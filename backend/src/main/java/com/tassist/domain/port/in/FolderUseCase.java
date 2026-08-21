@@ -10,6 +10,7 @@ import java.util.List;
 /** Inbound port: folder CRUD + membership (spec §12.3). Ownership verified in impl (§7.4). */
 public interface FolderUseCase {
     Folder create(UserId actingUser, String name);
+    Folder rename(UserId actingUser, FolderId folderId, String newName);
     List<Folder> list(UserId actingUser);
     void delete(UserId actingUser, FolderId folderId);
     void addFile(UserId actingUser, FolderId folderId, FileId fileId);
