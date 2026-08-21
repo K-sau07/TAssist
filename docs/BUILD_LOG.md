@@ -273,3 +273,28 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Deferred to Step 6:** spreadsheet structured mode (§11.3) — schema-summary embeddings + `query_spreadsheet` tool-call loop; XLSX/CSV currently sit at PARSING per D16.
 
 **Next:** Step 6 (spreadsheet structured mode, §11.3).
+
+
+#### Step 6 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Spreadsheet structured-mode ingestion (§11.3), XLSX + CSV. Replaces the D16 "stay at PARSING" hold. Ingestion only — the query-time `query_spreadsheet` tool (§11.7) and SSE streaming (§11.6) remain later steps (confirmed with user).
+
+**Sub-commits (granular convention):**
+- `d66368d` **6.1** `SpreadsheetParser` (application/ingest) + `ParsedSheet`/`ColumnType` records + `ColumnTypeInferrer`. XLSX via POI XSSF (date-formatted cells → ISO date), CSV via OpenCSV. Row 1 = header; blank/duplicate header cells get synthetic/deduped names; missing trailing cells → null. Type inference (TEXT/NUMBER/DATE/BOOLEAN) samples first 100 non-empty values/col, all-or-TEXT with BOOLEAN>NUMBER>DATE precedence. Tests: `ColumnTypeInferrerTest` (7) + `SpreadsheetParserTest` (4).
+- `f81955f` **6.2** `SchemaSummarizer` — builds §11.3 NL summary ("Sheet 'X' has N rows and M columns: col (TYPE), ... Sample values — col: v, ..."), TEXT samples quoted, up to 6 sample cols, singular/plural wording, omits sample clause when empty. `SchemaSummarizerTest` (3).
+- `4c2867c` **6.3** `SpreadsheetIngestService` — parse → per sheet: summarize → `embed(summary)` → build `SpreadsheetSheet` (types as String names) → `saveSheet` → `saveRows` batched at 1000. Added Hibernate JDBC batch config (`batch_size: 500`, ordered inserts) to application.yml. `SpreadsheetIngestServiceTest` (2, fakes: verifies 1-indexed rows, 1 embed/sheet, batch call count 1000+1000+500).
+- `df18c2f` **6.4** Wired into `FileService`: XLSX/CSV branch now calls `spreadsheetIngest.ingest(...)` → READY; failure → FAILED + reason (§11.1). Added ctor dependency (Spring-injected; no test constructs FileService manually). `FileEndpointsTest` +2 (CSV + XLSX upload → READY, asserts sheet/row counts + 1024-dim embedding over Testcontainers, offline fake embedder).
+
+**6.5 — live acceptance VERIFIED (2026-08-21):**
+- Backend restarted on new build with `.env` sourced (`set -a; . .env; set +a`) so VOYAGE_API_KEY resolves (see Step 5 note — Spring does not read .env natively).
+- Generated synthetic 12,000-row .xlsx (6 cols: date/product/region/units/revenue/status, 410 KB) via openpyxl. Uploaded live.
+- Result: file **READY in ~4s**. §20 acceptance: `SELECT count(*) FROM spreadsheet_row ... WHERE file_id=?` → **12,000** (exact). `schema_summary_embedding` non-null, `vector_dims = 1024`. Schema summary text correct. Column types inferred correctly (date→DATE, units/revenue→NUMBER, rest TEXT). Rows stored as JSONB keyed by column name, 1-indexed.
+- Test data cleaned (file delete cascades to sheet+rows via FK ON DELETE CASCADE); DB + storage + git tree left clean.
+
+**Verification:** live acceptance as above; full automated suite **91 tests, 0 failures** (was 65 pre-Step-6; +26 across 6.1–6.4: 11+3+2+2 new unit/endpoint tests and existing coverage). No regressions.
+
+**Decision note:** No new D-number needed — this is the planned §11.3 route that supersedes the D14 plain-dump and lifts the D16 PARSING hold for spreadsheets. Text files unchanged (Step 5 pipeline).
+
+**Deferred to later steps:** `query_spreadsheet` tool (§11.7) + tool-use SSE mode (§11.6) — belong with the retrieval/generation steps.
+
+**Next:** Step 7 (folders + folder/file API).
