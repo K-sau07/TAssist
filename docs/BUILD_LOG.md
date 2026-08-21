@@ -407,3 +407,8 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Deferred:** CHANNEL scope still stubbed (D18) until channels exist (Step 12).
 
 **Next:** Step 12 (channels + memberships + channel chat).
+
+
+#### Deviation D19 (2026-08-21) — Channel analytics deferred out of Step 12
+
+Spec §12.5 lists three owner analytics endpoints (`/analytics/questions`, `/analytics/topics`, `/analytics/coverage`). These are a distinct aggregation feature that sits naturally with quota/usage aggregation, and the §20 Step 12 acceptance does not exercise them (it tests the create→join→approve→ask-via-stream path). To keep Step 12 focused on channels + memberships + channel chat, analytics is deferred to a later step (target: with Step 13 quotas or a dedicated analytics step). User approved the deferral. No product decision changed — the endpoints remain in scope, just sequenced later.

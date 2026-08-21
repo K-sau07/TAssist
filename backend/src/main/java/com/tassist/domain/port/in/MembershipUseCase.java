@@ -16,6 +16,9 @@ public interface MembershipUseCase {
 
     Membership requestJoin(UserId actingUser, ChannelId channelId, Optional<String> message);
 
+    /** The caller's own membership in a channel, if any (visitor-safe; no ownership required). */
+    Optional<Membership> myMembership(UserId actingUser, ChannelId channelId);
+
     void leave(UserId actingUser, ChannelId channelId);
 
     List<Membership> listByStatus(UserId actingOwner, ChannelId channelId, MembershipStatus status);

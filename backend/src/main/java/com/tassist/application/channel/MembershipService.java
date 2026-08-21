@@ -39,6 +39,11 @@ public class MembershipService implements MembershipUseCase {
     // ---- visitor side (§12.6) ----
 
     @Override
+    public Optional<Membership> myMembership(UserId actingUser, ChannelId channelId) {
+        return memberships.findByChannelAndUser(channelId, actingUser);
+    }
+
+    @Override
     @Transactional
     public Membership requestJoin(UserId actingUser, ChannelId channelId, Optional<String> message) {
         Channel channel = channel(channelId);
