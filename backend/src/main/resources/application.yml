@@ -16,6 +16,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        jdbc:
+          batch_size: 500
+        order_inserts: true
+        order_updates: true
 
   # Flyway is wired in Step 2 (migrations V1-V8). Disabled until then.
   flyway:
