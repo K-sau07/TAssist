@@ -298,3 +298,21 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Deferred to later steps:** `query_spreadsheet` tool (§11.7) + tool-use SSE mode (§11.6) — belong with the retrieval/generation steps.
 
 **Next:** Step 7 (folders + folder/file API).
+
+
+#### Step 7 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Folders + folder/file API (§12.3). Persistence (V3 tables, entities, mappers, adapters, FolderRepository + FolderFileRepository ports) already existed from Step 2 — this step added the application service + REST layer.
+
+**Sub-commits (granular convention):**
+- `e957041` **7.1** Added `rename(...)` to `FolderUseCase` port (§12.3 PATCH). `FolderService` implements create/list/rename/delete/addFile/removeFile/listFiles with ownership checks (§7.4) and unique (owner, name). Rules: names trimmed, max 128 chars, blank → 422; duplicate → 409; delete removes folder_file links via FK cascade but retains files (§8); addFile validates file ownership. `FolderServiceTest` (13, fakes: CRUD, rename-conflict, cross-user Forbidden, missing-folder/file NotFound, file-survives-delete).
+- `ba6aada` **7.2** `FolderController` (§12.3: GET/POST/PATCH/DELETE /api/folders, POST/DELETE .../files, GET .../files) + `FolderDtos`. Add-files takes batch `{"fileIds":[...]}` and loops the single-file port method. Reuses `FileDtos.FileView` for listFiles. Path-id parse errors → 422. SecurityConfig unchanged (anyRequest().authenticated() already covers /api/folders). `FolderEndpointsTest` (5, Testcontainers: full lifecycle, rename, dup→409, cross-user→403, unauth→401).
+
+**7.3 — live curl acceptance VERIFIED (2026-08-21):**
+- Backend restarted on Step-7 build (`.env` sourced). Full §20 sequence via curl, single user:
+  create folder → 201; upload 2 files; add both (batch) → 204; list → 2 files; remove one → 204, list → 1; rename (PATCH) → "Lectures 2024"; delete folder → 204, folders → 0; both files still GET 200 after folder deletion (§8 invariant held).
+- Test data cleaned (users/files/storage); DB + storage + git tree left clean.
+
+**Verification:** live curl acceptance as above; full automated suite **109 tests, 0 failures** (was 91; +18: 13 service + 5 endpoint). No regressions.
+
+**Next:** Step 8 (retrieval service).
