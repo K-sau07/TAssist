@@ -383,3 +383,27 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Verification:** live acceptance as above; full offline suite **167 tests, 0 failures, 1 skipped** (env-gated live Claude test). Was 145 end of Step 9; +22 across Step 10 (10 + 5 + 4 + 2 regex regression, one prior count shift).
 
 **Next:** Step 11 (SSE streaming — /messages/stream, server-side tool-use for query_spreadsheet).
+
+
+#### Step 11 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** SSE streaming (§11.6) + server-side tool-use loop for query_spreadsheet (§11.7). LLMClient port existed from Step 2; stream() was a stub until now.
+
+**Sub-commits (granular convention):**
+- `0ddb0c5` **11.1** `AnthropicLLMClient.stream()` — real Anthropic SSE via JDK HttpClient (stream:true); static parser emits text tokens, tracks cumulative usage, surfaces errors. `AnthropicStreamParseTest`. (Note: this work was written earlier same session, orphaned by a Desktop Commander hang; reconciled from the working tree — not rebuilt — then committed.)
+- `52fafd1` **11.2** `ChatStreamService` + transport-agnostic `StreamSink`: §11.6 flow (persist USER → retrieve → sources → stream tokens → [Sn] citation events → persist ASSISTANT + citations → quota → grounded-sentinel fallback rerun on same connection). Added `GenerationService.plan()` so streaming shares mode-selection with non-stream. `ChatStreamServiceTest` (5, fakes).
+- `afd6562` **11.3** `POST /api/chats/{id}/messages/stream` (SseEmitter, no timeout) + `SseStreamSink` (JSON events + 15s `: ping` keep-alive). Live curl -N acceptance verified: start→sources→token→citation→done with a grounded answer + working [S1] citation.
+- `9481eb9` **11.4** `SpreadsheetQueryService` (§11.7) — safe parameterized SQL over spreadsheet_row.values JSONB. Column names validated against the sheet's declared columns (never raw from model); operators whitelist-only; values bound as JDBC params; aggregates (count/sum/avg/min/max), group_by, filters (=,!=,<,<=,>,>=,contains,in), limit capped 500. Tool errors (UNKNOWN_COLUMN/OPERATOR/SHEET) returned to model, not user. Added `findSheetById` to the repo. `SpreadsheetQueryServiceTest` (9, Testcontainers).
+- `65df700` **11.5** Server-side tool-use loop. Extended LLMClient port with `ToolCall`/`ToolExecutor` + `stream(request, events, toolExecutor)` (default method → existing callers unaffected). Rewrote the adapter's SSE parser as `parseTurn` (tracks content-block types, accumulates input_json_delta → parsed tool input, detects stop_reason=tool_use) and added a re-request loop that appends assistant tool_use turn + user tool_result turn until natural end (guard cap 6). `PromptBuilder.spreadsheet()` (grounded system + §11.5 addendum + available-spreadsheets catalogue) + `querySpreadsheetTool()` schema. `ChatStreamService` detects spreadsheet hits → spreadsheet mode + ToolExecutor that runs SpreadsheetQueryService and emits `tool_result`. `AnthropicStreamParseTest` updated to parseTurn (text + tool_use cases).
+
+**Live acceptance VERIFIED (2026-08-21):**
+- Streaming (11.3): curl -N on a FOLDER chat → start(grounded)/sources/token*/citation/done; answer grounded with [S1].
+- Tool-use (11.5): uploaded a 4-row CSV (structured ingest → READY), asked "total revenue across all rows" on a FOLDER chat. Stream showed: start(mode=spreadsheet) → tokens → tool_use{query_spreadsheet, sum revenue} → tool_result{aggregateValue:500} → tokens "total revenue ... is 500" → done. Correct sum (100+250+60+90=500); number came from the tool, not hallucinated.
+
+**Verification:** full suite **184 tests, 0 failures, 1 skipped** (env-gated live gen test). Live curl acceptances as above.
+
+**Ops note:** transient GitHub push stalls this session were caused by orphaned git-credential-manager helper processes from retried pushes, not connectivity — killing the stuck `git push`/`git-credential-manager` PIDs restores fast pushes. (Recovery pattern alongside D10's Desktop Commander restart.)
+
+**Deferred:** CHANNEL scope still stubbed (D18) until channels exist (Step 12).
+
+**Next:** Step 12 (channels + memberships + channel chat).
