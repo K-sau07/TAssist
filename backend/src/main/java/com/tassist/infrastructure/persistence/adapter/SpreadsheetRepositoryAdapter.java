@@ -39,6 +39,10 @@ public class SpreadsheetRepositoryAdapter implements SpreadsheetRepository {
         return sheetJpa.findByFileId(fileId.value()).stream().map(SpreadsheetSheetMapper::toDomain).toList();
     }
 
+    @Override public java.util.Optional<SpreadsheetSheet> findSheetById(UUID sheetId) {
+        return sheetJpa.findById(sheetId).map(SpreadsheetSheetMapper::toDomain);
+    }
+
     @Override public long countRowsBySheet(UUID sheetId) { return rowJpa.countBySheetId(sheetId); }
 
     @Override @Transactional public void deleteByFile(FileId fileId) {

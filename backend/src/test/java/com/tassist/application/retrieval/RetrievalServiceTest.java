@@ -38,6 +38,7 @@ class RetrievalServiceTest {
         public SpreadsheetSheet saveSheet(SpreadsheetSheet s) { return s; }
         public void saveRows(List<SpreadsheetRow> r) {}
         public List<SpreadsheetSheet> findSheetsByFile(FileId f) { return List.of(); }
+        public java.util.Optional<SpreadsheetSheet> findSheetById(java.util.UUID id) { return java.util.Optional.empty(); }
         public long countRowsBySheet(UUID id) { return 0; }
         public void deleteByFile(FileId f) {}
         public List<ScoredSheet> searchSimilarSheets(float[] q, List<FileId> cand, int k) { return toReturn; }

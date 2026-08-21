@@ -11,6 +11,7 @@ public interface SpreadsheetRepository {
     SpreadsheetSheet saveSheet(SpreadsheetSheet sheet);
     void saveRows(List<SpreadsheetRow> rows);
     List<SpreadsheetSheet> findSheetsByFile(FileId fileId);
+    java.util.Optional<SpreadsheetSheet> findSheetById(UUID sheetId);
     long countRowsBySheet(UUID sheetId);
     void deleteByFile(FileId fileId);
 

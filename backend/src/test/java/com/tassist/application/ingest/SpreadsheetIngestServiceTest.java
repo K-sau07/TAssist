@@ -34,6 +34,7 @@ class SpreadsheetIngestServiceTest {
         public SpreadsheetSheet saveSheet(SpreadsheetSheet s) { sheets.add(s); return s; }
         public void saveRows(List<SpreadsheetRow> r) { saveRowsCalls++; rows.addAll(r); }
         public List<SpreadsheetSheet> findSheetsByFile(FileId f) { return sheets; }
+        public java.util.Optional<SpreadsheetSheet> findSheetById(java.util.UUID id) { return java.util.Optional.empty(); }
         public long countRowsBySheet(UUID id) { return rows.size(); }
         public void deleteByFile(FileId f) {}
         public List<ScoredSheet> searchSimilarSheets(float[] q, List<FileId> ids, int k) { return List.of(); }
