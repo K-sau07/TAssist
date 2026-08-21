@@ -58,6 +58,12 @@ class RetrievalServiceTest {
         public List<FileId> findFileIdsByFolder(FolderId fo) { return byFolder.getOrDefault(fo.value(), List.of()); }
         public List<FolderId> findFolderIdsByFile(FileId fi) { return List.of(); }
     }
+    static class FakeChannelFiles implements com.tassist.domain.port.out.ChannelFileRepository {
+        public com.tassist.domain.model.ChannelFile add(com.tassist.domain.model.ChannelFile cf){ return cf; }
+        public void remove(com.tassist.domain.vo.ChannelId c, FileId f){}
+        public java.util.List<com.tassist.domain.model.ChannelFile> findByChannel(com.tassist.domain.vo.ChannelId c){ return java.util.List.of(); }
+        public java.util.List<FileId> findFileIdsByChannel(com.tassist.domain.vo.ChannelId c){ return java.util.List.of(); }
+    }
     static class FakeFiles implements FileRepository {
         final Map<UUID, File> byId = new HashMap<>();
         public File save(File f) { byId.put(f.id().value(), f); return f; }
@@ -74,8 +80,9 @@ class RetrievalServiceTest {
     private final FakeFolders folders = new FakeFolders();
     private final FakeFolderFiles folderFiles = new FakeFolderFiles();
     private final FakeFiles files = new FakeFiles();
+    private final FakeChannelFiles channelFiles = new FakeChannelFiles();
     private final RetrievalService svc =
-        new RetrievalService(embed, chunks, sheets, folders, folderFiles, files);
+        new RetrievalService(embed, chunks, sheets, folders, folderFiles, files, channelFiles);
 
     private final UserId user = UserId.newId();
 

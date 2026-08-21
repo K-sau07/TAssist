@@ -6,10 +6,12 @@ import com.tassist.domain.error.ValidationError;
 import com.tassist.domain.model.File;
 import com.tassist.domain.model.Folder;
 import com.tassist.domain.port.in.RetrievalUseCase;
+import com.tassist.domain.vo.ChannelId;
 import com.tassist.domain.port.out.ChunkRepository;
 import com.tassist.domain.port.out.ChunkRepository.ScoredChunk;
 import com.tassist.domain.port.out.EmbeddingClient;
 import com.tassist.domain.port.out.FileRepository;
+import com.tassist.domain.port.out.ChannelFileRepository;
 import com.tassist.domain.port.out.FolderFileRepository;
 import com.tassist.domain.port.out.FolderRepository;
 import com.tassist.domain.port.out.SpreadsheetRepository;
@@ -45,16 +47,19 @@ public class RetrievalService implements RetrievalUseCase {
     private final FolderRepository folders;
     private final FolderFileRepository folderFiles;
     private final FileRepository files;
+    private final ChannelFileRepository channelFiles;
 
     public RetrievalService(EmbeddingClient embeddings, ChunkRepository chunks,
                             SpreadsheetRepository spreadsheets, FolderRepository folders,
-                            FolderFileRepository folderFiles, FileRepository files) {
+                            FolderFileRepository folderFiles, FileRepository files,
+                            ChannelFileRepository channelFiles) {
         this.embeddings = embeddings;
         this.chunks = chunks;
         this.spreadsheets = spreadsheets;
         this.folders = folders;
         this.folderFiles = folderFiles;
         this.files = files;
+        this.channelFiles = channelFiles;
     }
 
     @Override
@@ -63,10 +68,6 @@ public class RetrievalService implements RetrievalUseCase {
         if (q.scope() == Scope.REGULAR) {
             return new RetrievalResult(List.of(), List.of(), false, List.of());
         }
-        if (q.scope() == Scope.CHANNEL) {
-            throw new ValidationError("CHANNEL-scope retrieval is not yet supported");
-        }
-
         List<String> warnings = new ArrayList<>();
 
         // 2+4. Resolve candidate files. Mentions override scope (§11.4 step 2).
@@ -75,6 +76,12 @@ public class RetrievalService implements RetrievalUseCase {
         if (!q.mentionedFileIds().isEmpty()) {
             candidates = visibleOwnedFiles(q.userId(), q.mentionedFileIds(), warnings);
             topK = TOPK_MENTIONS;
+        } else if (q.scope() == Scope.CHANNEL) {
+            // CHANNEL scope: the channel's attached files (owned by the channel owner). Membership
+            // authorization is enforced upstream in the chat layer; retrieval trusts the resolved channel.
+            candidates = channelCandidates(q.channelId()
+                .orElseThrow(() -> new ValidationError("channelId required for CHANNEL scope")));
+            topK = TOPK_SCOPED;
         } else if (q.scope() == Scope.FOLDER) {
             candidates = folderCandidates(q.userId(), q.folderId()
                 .orElseThrow(() -> new ValidationError("folderId required for FOLDER scope")));
@@ -112,6 +119,18 @@ public class RetrievalService implements RetrievalUseCase {
             q.userId().value(), q.scope(), candidates.size(), textHits.size(), spreadsheetHits.size(), allBelow);
 
         return new RetrievalResult(textHits, spreadsheetHits, allBelow, warnings);
+    }
+
+    /** CHANNEL scope: the files attached to the channel (§11.4). Only READY files are retrievable. */
+    private List<FileId> channelCandidates(ChannelId channelId) {
+        List<FileId> ids = channelFiles.findFileIdsByChannel(channelId);
+        List<FileId> ready = new ArrayList<>();
+        for (FileId id : ids) {
+            files.findById(id).ifPresent(f -> {
+                if (f.status() == com.tassist.domain.vo.FileStatus.READY) ready.add(f.id());
+            });
+        }
+        return ready;
     }
 
     /** FOLDER scope: files in the folder, folder owned by user (§11.4 step 4). */

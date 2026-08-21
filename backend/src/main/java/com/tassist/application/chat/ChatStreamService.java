@@ -84,13 +84,14 @@ public class ChatStreamService {
             // 2. Scope selection (mentions override chat scope).
             Scope scope;
             if (!mentionedFiles.isEmpty()) scope = Scope.MENTIONS;
+            else if (chat.scope() == ChatScope.CHANNEL) scope = Scope.CHANNEL;
             else if (chat.scope() == ChatScope.FOLDER) scope = Scope.FOLDER;
             else scope = Scope.REGULAR;
             boolean regularScope = scope == Scope.REGULAR;
 
             // 3. Retrieve.
             RetrievalResult retrieved = retrieval.retrieve(new RetrievalQuery(
-                actingUser, content, scope, chat.folderId(), Optional.empty(), mentionedFiles));
+                actingUser, content, scope, chat.folderId(), chat.channelId(), mentionedFiles));
 
             // 4. Plan mode + request (shared with non-stream path).
             GenerationService.Plan plan = generation.plan(content, retrieved, regularScope);
