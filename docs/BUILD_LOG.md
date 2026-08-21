@@ -250,3 +250,26 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Deferred to Step 5:** chunking (§11.2), embedding (Voyage client), READY flip, spreadsheet structured mode (§11.3 — replaces the Step-4 plain-dump route per D14). File stays at PARSING after Step 4; Step 5 completes the pipeline to READY.
 
 **Next:** Step 5 (chunking + embedding + READY) OR resume deferred 3.3 Google OAuth when creds available.
+
+
+#### Step 5 — DONE & VERIFIED (2026-08-21)
+
+**Scope (corrected per D16):** TEXT files only (PDF/DOCX/PPTX/TXT/MD) → chunk (§11.2) → embed (Voyage) → READY. Spreadsheets (XLSX/CSV) deferred to Step 6 structured mode (§11.3); they skip chunk/embed and remain at PARSING.
+
+**Sub-commits (granular convention):**
+- `7d0a9f2` **5.1** `Chunker` per §11.2 + `TextChunk` record + `ChunkerTest` (in `application/ingest/`). Rules: PDF page→chunk (split >500 tok, `{page,part}`); DOCX paragraph-pack `{paragraphRange}`; PPTX per-slide (split >800 tok); TXT greedy-pack `{section}`; MD per-heading `{heading}`. tokens = chars/4, target 500, overlap 50.
+- `8399db7` **5.2** `VoyageEmbeddingClient` + `VoyageProperties` (binds `tassist.embedding.voyage.*`: voyage-3.5, dim 1024, batch ≤32) + `EmbeddingConfig`; dev yml wired `api-key: ${VOYAGE_API_KEY:}`.
+- `605d3a8` **5.3** FileService wired: parse → chunk → `embedBatch` → `chunks.saveAll` (atomic) → READY; failure → FAILED + reason; spreadsheets skip → stay PARSING. FileEndpointsTest extended.
+
+**5.4 — live acceptance VERIFIED (2026-08-21):**
+- Voyage API key obtained (voyageai.com) and placed in `.env` (gitignored). NOTE: Spring does not read `.env` natively — `${VOYAGE_API_KEY}` resolves against the OS environment, so the run must source `.env` first (`set -a; . .env; set +a`) before `mvn spring-boot:run`. (Bare `mvn spring-boot:run` leaves the var empty → fail-fast "VOYAGE_API_KEY not configured".)
+- Fail-fast path proven first (empty key): upload PDF → file FAILED, reason "VOYAGE_API_KEY not configured; cannot embed", chunk count 0 (atomic save held, no partial writes).
+- Green path proven (key loaded): signup → upload PDF → **file status READY**. §20 acceptance query `SELECT count(*) FROM chunk WHERE file_id=?` → **1** (>0). Embedding non-null, `vector_dims = 1024` (matches D5). Chunk text stored correctly.
+- Full pipeline verified end-to-end live: upload → parse → chunk → Voyage embed → atomic saveAll → READY.
+- Test data (users/files/chunks + on-disk storage) cleaned after each run; DB + storage + git tree left clean.
+
+**Verification:** live acceptance as above; automated suite unchanged at 65 tests, 0 failures (no test regressions from 5.x wiring).
+
+**Deferred to Step 6:** spreadsheet structured mode (§11.3) — schema-summary embeddings + `query_spreadsheet` tool-call loop; XLSX/CSV currently sit at PARSING per D16.
+
+**Next:** Step 6 (spreadsheet structured mode, §11.3).
