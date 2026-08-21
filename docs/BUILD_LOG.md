@@ -458,3 +458,20 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Deviations:** D20 (in-memory Bucket4j, Redis-distributed deferred). Token quota is warn-only per §16.2 (not hard-blocked in Phase 1).
 
 **Next:** Step 14 (widgets — notes + todos endpoints).
+
+
+#### Step 14 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Dashboard widgets — single per-user note + todo list (§12.7). Domain/persistence pre-existed (Steps 1–2); this step added the application service + controllers. Straight CRUD.
+
+**Sub-commits:**
+- `<this>` **14.1** `WidgetService` (note auto-creates on first GET, PUT overwrites, 10KB cap; todos append at max(position)+1, list in position order, PATCH toggles done/edits text/reorders, DELETE with ownership). `NoteController` (GET/PUT /api/notes) + `TodoController` (GET/POST /api/todos, PATCH/DELETE /api/todos/{id}) in WidgetControllers.java. 8 unit tests.
+
+**Live acceptance VERIFIED (2026-08-21):**
+- Notes: GET auto-creates empty → PUT "Remember to review chapter 5" → GET persisted. ✓
+- Todos: created 2 (positions 0,1 in order) → PATCH toggle done → DELETE (204) → final list correct. ✓
+- Ownership: another user DELETE on my todo → 403. ✓
+
+**Verification:** full suite **201 tests, 0 failures, 1 skipped**. Live curl CRUD as above.
+
+**Next:** Step 15 (frontend scaffolding).
