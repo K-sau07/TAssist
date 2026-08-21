@@ -90,7 +90,10 @@ class ChatStreamServiceTest {
 
     private ChatStreamService svc(LLMClient llm) {
         GenerationService gen = new GenerationService(new PromptBuilder(), llm, files);
-        return new ChatStreamService(chats, messages, new FakeMentions(), retrieval, gen, llm, files, quota);
+        // spreadsheet path is never exercised in these tests (no spreadsheet hits), so a repo-less
+        // SpreadsheetQueryService is safe here.
+        return new ChatStreamService(chats, messages, new FakeMentions(), retrieval, gen, llm, files, quota,
+            new PromptBuilder(), new com.tassist.application.spreadsheet.SpreadsheetQueryService(null));
     }
 
     private final UserId user = UserId.newId();

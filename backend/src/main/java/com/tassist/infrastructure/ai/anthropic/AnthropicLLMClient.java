@@ -18,6 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -92,25 +94,79 @@ public class AnthropicLLMClient implements LLMClient {
             throw new UpstreamError.LlmFailure("Anthropic response parse failed: " + e.getMessage(), e);
         }
     }
+    // ---- streaming ----
 
-    /**
-     * Real Anthropic SSE streaming (§11.6) via JDK HttpClient (no WebFlux dependency).
-     * Parses content_block_delta (text tokens), message_start/message_delta (usage), message_stop,
-     * and error events, surfacing them through {@code events}. tool_use blocks are surfaced via
-     * onToolUse (the tool-use loop that acts on them is wired in the next sub-step).
-     */
+    /** Plain streaming (no tool loop): forward text tokens + usage. Used by callers without tools. */
     @Override
     public void stream(LlmRequest request, StreamEvents events) {
+        streamWithTools(request, events, null);
+    }
+
+    /**
+     * Streaming WITH a server-side tool-use loop (§11.6 step 5 / §11.7). When the model finishes a
+     * turn with stop_reason=tool_use, each tool_use block is executed via {@code toolExecutor}, the
+     * results are appended as a user tool_result turn, and the conversation is re-streamed until a
+     * natural end. Text tokens stream through {@code events.onToken} across all turns.
+     */
+    @Override
+    public void stream(LlmRequest request, StreamEvents events, ToolExecutor toolExecutor) {
+        streamWithTools(request, events, toolExecutor);
+    }
+
+    private void streamWithTools(LlmRequest request, StreamEvents events, ToolExecutor toolExecutor) {
         if (!props.isConfigured()) {
             events.onError("NOT_CONFIGURED", "ANTHROPIC_API_KEY not configured; cannot generate");
             return;
         }
-
+        // running message list (raw maps) so we can append assistant tool_use + user tool_result turns
         List<Map<String, Object>> messages = new ArrayList<>();
         for (LlmMessage m : request.messages()) {
-            messages.add(Map.of("role", m.role(), "content", m.content()));
+            messages.add(mapOf("role", m.role(), "content", m.content()));
         }
-        Map<String, Object> body = new java.util.HashMap<>();
+
+        int totalIn = 0, totalOut = 0;
+        int guard = 0;
+        try {
+            while (true) {
+                if (++guard > 6) { // safety: cap tool-use round-trips
+                    events.onError("TOOL_LOOP_LIMIT", "exceeded max tool-use iterations");
+                    break;
+                }
+                StreamTurn turn = sendStreamOnce(request, messages, events);
+                totalIn += turn.inputTokens;
+                totalOut += turn.outputTokens;
+
+                if (turn.error != null) { events.onError(turn.errorCode, turn.error); return; }
+
+                if (!turn.toolCalls.isEmpty() && toolExecutor != null) {
+                    // append assistant turn (its tool_use blocks) then user turn (tool_result blocks)
+                    messages.add(mapOf("role", "assistant", "content", turn.assistantContent));
+                    List<Map<String, Object>> results = new ArrayList<>();
+                    for (ToolCall call : turn.toolCalls) {
+                        events.onToolUse(call.id(), call.name(), call.input());
+                        Map<String, Object> result = toolExecutor.execute(call);
+                        Map<String, Object> block = new LinkedHashMap<>();
+                        block.put("type", "tool_result");
+                        block.put("tool_use_id", call.id());
+                        block.put("content", safeJson(result));
+                        results.add(block);
+                    }
+                    messages.add(mapOf("role", "user", "content", results));
+                    continue; // re-stream with the tool results in context
+                }
+                break; // natural end (no tool calls, or no executor)
+            }
+        } catch (Exception e) {
+            events.onError("UPSTREAM_TIMEOUT", "Anthropic stream failed: " + e.getMessage());
+            return;
+        }
+        events.onCompleted(totalIn, totalOut);
+    }
+
+    /** One streaming round-trip. Streams text via events.onToken; collects tool_use blocks + usage. */
+    private StreamTurn sendStreamOnce(LlmRequest request, List<Map<String, Object>> messages,
+                                      StreamEvents events) throws Exception {
+        Map<String, Object> body = new HashMap<>();
         body.put("model", props.getModel());
         body.put("max_tokens", props.getMaxTokens());
         body.put("system", request.system());
@@ -119,19 +175,12 @@ public class AnthropicLLMClient implements LLMClient {
         if (!request.tools().isEmpty()) {
             List<Map<String, Object>> tools = new ArrayList<>();
             for (ToolSpec t : request.tools()) {
-                tools.add(Map.of("name", t.name(), "description", t.description(),
+                tools.add(mapOf("name", t.name(), "description", t.description(),
                     "input_schema", t.inputSchema()));
             }
             body.put("tools", tools);
         }
-
-        String payload;
-        try {
-            payload = json.writeValueAsString(body);
-        } catch (Exception e) {
-            events.onError("REQUEST_SERIALIZE", e.getMessage());
-            return;
-        }
+        String payload = json.writeValueAsString(body);
 
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
         HttpRequest req = HttpRequest.newBuilder()
@@ -143,53 +192,115 @@ public class AnthropicLLMClient implements LLMClient {
             .POST(HttpRequest.BodyPublishers.ofString(payload))
             .build();
 
-        try {
-            HttpResponse<java.io.InputStream> resp =
-                client.send(req, HttpResponse.BodyHandlers.ofInputStream());
-            if (resp.statusCode() / 100 != 2) {
-                events.onError("UPSTREAM_" + resp.statusCode(), "Anthropic stream returned HTTP " + resp.statusCode());
-                return;
-            }
-            try (BufferedReader r = new BufferedReader(
-                    new InputStreamReader(resp.body(), StandardCharsets.UTF_8))) {
-                parseSseStream(r, events, json);
-            }
-        } catch (Exception e) {
-            events.onError("UPSTREAM_TIMEOUT", "Anthropic stream failed: " + e.getMessage());
+        HttpResponse<java.io.InputStream> resp = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
+        StreamTurn turn = new StreamTurn();
+        if (resp.statusCode() / 100 != 2) {
+            turn.errorCode = "UPSTREAM_" + resp.statusCode();
+            turn.error = "Anthropic stream returned HTTP " + resp.statusCode();
+            return turn;
         }
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(resp.body(), StandardCharsets.UTF_8))) {
+            parseTurn(r, events, json, turn);
+        }
+        return turn;
     }
 
-    /**
-     * Parses an Anthropic SSE stream from {@code reader}, emitting via {@code events}.
-     * Package-private + static so it can be unit-tested against a canned stream (no network).
-     * Emits onToken per text delta, tracks usage, and calls onCompleted at message_stop / EOF.
-     */
-    static void parseSseStream(BufferedReader reader, StreamEvents events, ObjectMapper json)
+    /** Accumulates one turn: text tokens (streamed live), tool_use blocks, usage, assistant content array. */
+    static void parseTurn(BufferedReader reader, StreamEvents events, ObjectMapper json, StreamTurn turn)
             throws java.io.IOException {
-        int inputTokens = 0, outputTokens = 0;
+        Map<Integer, BlockAcc> blocks = new HashMap<>();
         String line;
         while ((line = reader.readLine()) != null) {
-            if (!line.startsWith("data:")) continue;   // ignore "event:" lines and blanks
+            if (!line.startsWith("data:")) continue;
             String data = line.substring(5).trim();
             if (data.isEmpty()) continue;
             JsonNode ev = json.readTree(data);
             switch (ev.path("type").asText()) {
                 case "message_start" ->
-                    inputTokens = ev.path("message").path("usage").path("input_tokens").asInt(0);
+                    turn.inputTokens = ev.path("message").path("usage").path("input_tokens").asInt(0);
+                case "content_block_start" -> {
+                    int idx = ev.path("index").asInt();
+                    JsonNode cb = ev.path("content_block");
+                    BlockAcc acc = new BlockAcc();
+                    acc.type = cb.path("type").asText();
+                    if ("tool_use".equals(acc.type)) {
+                        acc.id = cb.path("id").asText();
+                        acc.name = cb.path("name").asText();
+                    } else if ("text".equals(acc.type)) {
+                        acc.text.append(cb.path("text").asText(""));
+                    }
+                    blocks.put(idx, acc);
+                }
                 case "content_block_delta" -> {
+                    int idx = ev.path("index").asInt();
+                    BlockAcc acc = blocks.computeIfAbsent(idx, k -> new BlockAcc());
                     JsonNode delta = ev.path("delta");
-                    if ("text_delta".equals(delta.path("type").asText())) {
-                        events.onToken(delta.path("text").asText());
+                    String dt = delta.path("type").asText();
+                    if ("text_delta".equals(dt)) {
+                        String t = delta.path("text").asText();
+                        acc.text.append(t);
+                        events.onToken(t);
+                    } else if ("input_json_delta".equals(dt)) {
+                        acc.jsonBuf.append(delta.path("partial_json").asText());
                     }
                 }
-                case "message_delta" ->
-                    outputTokens = ev.path("usage").path("output_tokens").asInt(outputTokens);
-                case "error" ->
-                    events.onError("UPSTREAM_ERROR",
-                        ev.path("error").path("message").asText("stream error"));
-                default -> { /* content_block_start/stop, ping, message_stop — ignore */ }
+                case "message_delta" -> {
+                    turn.outputTokens = ev.path("usage").path("output_tokens").asInt(turn.outputTokens);
+                    String sr = ev.path("delta").path("stop_reason").asText("");
+                    if (!sr.isEmpty()) turn.stopReason = sr;
+                }
+                case "error" -> {
+                    turn.errorCode = "UPSTREAM_ERROR";
+                    turn.error = ev.path("error").path("message").asText("stream error");
+                }
+                default -> { /* content_block_stop, ping, message_stop */ }
             }
         }
-        events.onCompleted(inputTokens, outputTokens);
+        // assemble tool calls + assistant content array (for the follow-up turn)
+        List<Map<String, Object>> assistantContent = new ArrayList<>();
+        for (Map.Entry<Integer, BlockAcc> e : new java.util.TreeMap<>(blocks).entrySet()) {
+            BlockAcc acc = e.getValue();
+            if ("text".equals(acc.type) && acc.text.length() > 0) {
+                Map<String, Object> b = new LinkedHashMap<>();
+                b.put("type", "text"); b.put("text", acc.text.toString());
+                assistantContent.add(b);
+            } else if ("tool_use".equals(acc.type)) {
+                Map<String, Object> input = parseJsonObj(json, acc.jsonBuf.toString());
+                turn.toolCalls.add(new ToolCall(acc.id, acc.name, input));
+                Map<String, Object> b = new LinkedHashMap<>();
+                b.put("type", "tool_use"); b.put("id", acc.id); b.put("name", acc.name); b.put("input", input);
+                assistantContent.add(b);
+            }
+        }
+        turn.assistantContent = assistantContent;
+    }
+
+    // ---- helpers/types ----
+    static final class StreamTurn {
+        int inputTokens, outputTokens;
+        String stopReason, error, errorCode;
+        final List<ToolCall> toolCalls = new ArrayList<>();
+        Object assistantContent = List.of();
+    }
+    static final class BlockAcc {
+        String type, id, name;
+        final StringBuilder text = new StringBuilder();
+        final StringBuilder jsonBuf = new StringBuilder();
+    }
+
+    private static Map<String, Object> mapOf(Object... kv) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        for (int i = 0; i < kv.length; i += 2) m.put((String) kv[i], kv[i + 1]);
+        return m;
+    }
+    static Map<String, Object> parseJsonObj(ObjectMapper json, String raw) {
+        try {
+            if (raw == null || raw.isBlank()) return Map.of();
+            return json.readValue(raw, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) { return Map.of(); }
+    }
+    private String safeJson(Map<String, Object> result) {
+        try { return json.writeValueAsString(result); }
+        catch (Exception e) { return "{\"error\":\"result serialization failed\"}"; }
     }
 }

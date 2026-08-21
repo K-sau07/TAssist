@@ -13,6 +13,12 @@ import com.tassist.application.generation.CitationLabeler;
 import com.tassist.application.generation.GenerationService;
 import com.tassist.application.generation.GenerationService.Mode;
 import com.tassist.application.generation.PromptBuilder;
+import com.tassist.application.spreadsheet.SpreadsheetQueryService;
+import com.tassist.application.spreadsheet.SpreadsheetQueryService.ToolCallInput;
+import com.tassist.application.spreadsheet.SpreadsheetQueryService.Filter;
+import com.tassist.domain.model.SpreadsheetSheet;
+import com.tassist.domain.port.out.LLMClient.ToolCall;
+import com.tassist.domain.port.out.LLMClient.ToolExecutor;
 import com.tassist.application.retrieval.MentionResolver;
 import com.tassist.domain.vo.*;
 import org.slf4j.Logger;
@@ -44,10 +50,13 @@ public class ChatStreamService {
     private final LLMClient llm;
     private final FileRepository files;
     private final QuotaUsageRepository quotas;
+    private final PromptBuilder prompts;
+    private final SpreadsheetQueryService sheetQuery;
 
     public ChatStreamService(ChatRepository chats, MessageRepository messages, MentionResolver mentions,
                              RetrievalUseCase retrieval, GenerationService generation, LLMClient llm,
-                             FileRepository files, QuotaUsageRepository quotas) {
+                             FileRepository files, QuotaUsageRepository quotas,
+                             PromptBuilder prompts, SpreadsheetQueryService sheetQuery) {
         this.chats = chats;
         this.messages = messages;
         this.mentions = mentions;
@@ -56,6 +65,8 @@ public class ChatStreamService {
         this.llm = llm;
         this.files = files;
         this.quotas = quotas;
+        this.prompts = prompts;
+        this.sheetQuery = sheetQuery;
     }
 
     /** Runs the full §11.6 flow, emitting events to {@code sink}. Blocking (caller runs it async). */
@@ -85,26 +96,39 @@ public class ChatStreamService {
             GenerationService.Plan plan = generation.plan(content, retrieved, regularScope);
             String messageId = MessageId.newId().value().toString();
 
-            // start event
-            sink.emit("start", Map.of("messageId", messageId, "mode", modeLabel(plan.mode())));
+            // Spreadsheet-tool mode: a spreadsheet schema was among the hits (§11.5/§11.7).
+            boolean spreadsheetMode = !retrieved.spreadsheetHits().isEmpty() && !regularScope;
+
+            String modeStr = spreadsheetMode ? "spreadsheet" : modeLabel(plan.mode());
+            sink.emit("start", Map.of("messageId", messageId, "mode", modeStr));
 
             // sources event (skip in regular)
-            if (plan.mode() != Mode.REGULAR && !plan.sources().isEmpty()) {
+            if (!regularScope && !plan.sources().isEmpty()) {
                 sink.emit("sources", Map.of("sources", sourcesPayload(plan.sources(), retrieved.textHits())));
             }
 
             // 5. Stream tokens; accumulate; emit citation events as [Sn] complete.
-            Accumulator acc = streamAndAccumulate(plan.request(), sink, retrieved.textHits().size());
+            Accumulator acc;
+            Mode finalMode;
+            if (spreadsheetMode) {
+                List<SpreadsheetSheet> sheets = retrieved.spreadsheetHits().stream()
+                    .map(h -> h.sheet()).toList();
+                var request = prompts.spreadsheet(content, plan.sources(), sheets);
+                acc = streamAndAccumulate(request, sink, retrieved.textHits().size(), spreadsheetExecutor(sink));
+                finalMode = Mode.GROUNDED; // persisted as grounded (cited); "spreadsheet" is a stream label
+            } else {
+                acc = streamAndAccumulate(plan.request(), sink, retrieved.textHits().size(), null);
+                finalMode = plan.mode();
+            }
 
             String answer = acc.text.toString();
-            Mode finalMode = plan.mode();
             int inTok = acc.inputTokens, outTok = acc.outputTokens;
 
             // 6. Grounded → sentinel → fallback rerun (§11.6 step 7): new start, keep connection.
             if (finalMode == Mode.GROUNDED && answer.strip().equals(PromptBuilder.INSUFFICIENT_SENTINEL)) {
                 log.info("Grounded stream hit sentinel; rerunning fallback on same connection.");
                 sink.emit("start", Map.of("messageId", messageId, "mode", "fallback"));
-                Accumulator fb = streamAndAccumulate(generation.fallbackRequest(content), sink, 0);
+                Accumulator fb = streamAndAccumulate(generation.fallbackRequest(content), sink, 0, null);
                 answer = fb.text.toString();
                 finalMode = Mode.FALLBACK;
                 inTok += fb.inputTokens; outTok += fb.outputTokens;
@@ -139,11 +163,13 @@ public class ChatStreamService {
         int inputTokens, outputTokens;
     }
 
-    /** Stream one LLM request, forwarding token events + emitting citation events; returns accumulated text+usage. */
-    private Accumulator streamAndAccumulate(LlmRequest request, StreamSink sink, int sourceCount) {
+    /** Stream one LLM request, forwarding token events + emitting citation events; returns accumulated text+usage.
+     *  If {@code toolExecutor} is non-null, uses the tool-use streaming loop (§11.7). */
+    private Accumulator streamAndAccumulate(LlmRequest request, StreamSink sink, int sourceCount,
+                                            ToolExecutor toolExecutor) {
         Accumulator acc = new Accumulator();
         Set<Integer> citedEmitted = new HashSet<>();
-        llm.stream(request, new StreamEvents() {
+        StreamEvents handler = new StreamEvents() {
             public void onToken(String t) {
                 int prevLen = acc.text.length();
                 acc.text.append(t);
@@ -165,9 +191,50 @@ public class ChatStreamService {
             public void onError(String code, String msg) {
                 sink.emit("error", Map.of("code", code, "message", String.valueOf(msg)));
             }
-        });
+        };
+        if (toolExecutor != null) llm.stream(request, handler, toolExecutor);
+        else llm.stream(request, handler);
         return acc;
     }
+
+    /** Builds the query_spreadsheet executor: runs the tool, emits a tool_result event, returns the result. */
+    private ToolExecutor spreadsheetExecutor(StreamSink sink) {
+        return (ToolCall call) -> {
+            Map<String, Object> result;
+            if ("query_spreadsheet".equals(call.name())) {
+                result = sheetQuery.execute(toToolInput(call.input()));
+            } else {
+                result = Map.of("error", "UNKNOWN_TOOL", "name", call.name());
+            }
+            sink.emit("tool_result", Map.of("toolCallId", call.id(), "result", result));
+            return result;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private ToolCallInput toToolInput(Map<String, Object> in) {
+        String sheetId = in.get("sheet_id") == null ? null : String.valueOf(in.get("sheet_id"));
+        List<Filter> filters = new ArrayList<>();
+        Object rawFilters = in.get("filters");
+        if (rawFilters instanceof List<?> fl) {
+            for (Object o : fl) {
+                if (o instanceof Map<?,?> fm) {
+                    filters.add(new Filter(
+                        str(fm.get("column")), str(fm.get("op")), fm.get("value")));
+                }
+            }
+        }
+        String aggregate = str(in.get("aggregate"));
+        String aggCol = str(in.get("aggregate_column"));
+        List<String> groupBy = new ArrayList<>();
+        Object rawGroup = in.get("group_by");
+        if (rawGroup instanceof List<?> gl) for (Object o : gl) groupBy.add(String.valueOf(o));
+        Integer limit = null;
+        Object rawLimit = in.get("limit");
+        if (rawLimit instanceof Number n) limit = n.intValue();
+        return new ToolCallInput(sheetId, filters, aggregate, aggCol, groupBy, limit);
+    }
+    private static String str(Object o) { return o == null ? null : String.valueOf(o); }
 
     private List<Map<String, Object>> sourcesPayload(List<PromptBuilder.Source> sources, List<TextHit> hits) {
         List<Map<String, Object>> out = new ArrayList<>(sources.size());

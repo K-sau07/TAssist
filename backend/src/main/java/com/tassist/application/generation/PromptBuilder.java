@@ -2,6 +2,10 @@ package com.tassist.application.generation;
 
 import com.tassist.domain.port.out.LLMClient.LlmMessage;
 import com.tassist.domain.port.out.LLMClient.LlmRequest;
+import com.tassist.domain.port.out.LLMClient.LlmMessage;
+import com.tassist.domain.port.out.LLMClient.ToolSpec;
+import com.tassist.domain.model.SpreadsheetSheet;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -66,5 +70,60 @@ public class PromptBuilder {
 
     public LlmRequest regular(String question) {
         return new LlmRequest(REGULAR_SYSTEM, List.of(new LlmMessage("user", question)), List.of());
+    }
+
+    private static final String SPREADSHEET_ADDENDUM = """
+        Additional rule for spreadsheet questions:
+        - To retrieve actual rows or aggregates from a spreadsheet, call the `query_spreadsheet` tool. Do not fabricate numbers. If the answer requires data not returned by any tool call and not in the text excerpts, state so.""";
+
+    /** Spreadsheet-tool mode (§11.5): grounded system + addendum + available-spreadsheets catalogue + tool. */
+    public LlmRequest spreadsheet(String question, List<Source> sources, List<SpreadsheetSheet> sheets) {
+        StringBuilder sys = new StringBuilder(GROUNDED_SYSTEM).append("\n\n").append(SPREADSHEET_ADDENDUM);
+        sys.append("\n\nAvailable spreadsheets:\n");
+        for (SpreadsheetSheet sh : sheets) {
+            sys.append("- sheet_id: ").append(sh.id())
+               .append(", name: \"").append(sh.sheetName()).append("\", rows: ").append(sh.rowCount())
+               .append(",\n  columns: [");
+            for (int i = 0; i < sh.columnNames().size(); i++) {
+                if (i > 0) sys.append(", ");
+                sys.append("{").append(sh.columnNames().get(i)).append(": ")
+                   .append(i < sh.columnTypes().size() ? sh.columnTypes().get(i) : "TEXT").append("}");
+            }
+            sys.append("]\n");
+        }
+        if (sources != null && !sources.isEmpty()) {
+            sys.append("\nSources:\n");
+            for (int i = 0; i < sources.size(); i++) {
+                Source s = sources.get(i);
+                sys.append("[S").append(i + 1).append("] (").append(s.label()).append(") ")
+                   .append(s.text()).append('\n');
+            }
+        }
+        return new LlmRequest(sys.toString().stripTrailing(),
+            List.of(new LlmMessage("user", question)), List.of(querySpreadsheetTool()));
+    }
+
+    /** The query_spreadsheet tool schema (§11.5, Anthropic tool-use format). */
+    public static ToolSpec querySpreadsheetTool() {
+        Map<String, Object> schema = Map.of(
+            "type", "object",
+            "required", List.of("sheet_id"),
+            "properties", Map.of(
+                "sheet_id", Map.of("type", "string"),
+                "filters", Map.of("type", "array", "items", Map.of(
+                    "type", "object",
+                    "required", List.of("column", "op", "value"),
+                    "properties", Map.of(
+                        "column", Map.of("type", "string"),
+                        "op", Map.of("type", "string", "enum",
+                            List.of("=", "!=", "<", "<=", ">", ">=", "contains", "in")),
+                        "value", Map.of()))),
+                "aggregate", Map.of("type", "string", "enum", List.of("count","sum","avg","min","max")),
+                "aggregate_column", Map.of("type", "string"),
+                "group_by", Map.of("type", "array", "items", Map.of("type", "string")),
+                "limit", Map.of("type", "integer", "default", 50, "maximum", 500)));
+        return new ToolSpec("query_spreadsheet",
+            "Query rows from an ingested spreadsheet. Supports filtering and simple aggregations.",
+            schema);
     }
 }

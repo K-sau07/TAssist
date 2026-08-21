@@ -56,4 +56,23 @@ public interface LLMClient {
 
     /** Streaming completion (Step 11). Blocks until generation completes, emitting via {@code events}. */
     void stream(LlmRequest request, StreamEvents events);
+
+    /** A tool call the model requested during streaming. */
+    record ToolCall(String id, String name, Map<String, Object> input) {}
+
+    /** Executes a tool call and returns the result payload (serialized to a tool_result block). */
+    @FunctionalInterface
+    interface ToolExecutor {
+        Map<String, Object> execute(ToolCall call);
+    }
+
+    /**
+     * Streaming completion WITH a server-side tool-use loop (§11.6 step 5 / §11.7).
+     * When the model emits a tool_use block, the adapter executes it via {@code toolExecutor},
+     * feeds the tool_result back, and continues streaming until a natural end_turn.
+     * Default: ignore tools (delegates to the plain stream) so existing callers are unaffected.
+     */
+    default void stream(LlmRequest request, StreamEvents events, ToolExecutor toolExecutor) {
+        stream(request, events);
+    }
 }
