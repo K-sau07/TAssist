@@ -362,3 +362,24 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Verification:** live acceptance as above; full offline suite **145 tests, 0 failures** (was 130; +15 Step 9 unit tests). Live test is the 146th (env-gated).
 
 **Next:** Step 10 (chat endpoints — non-streaming). MentionResolver (built Step 8, D17) gets wired here before retrieve.
+
+
+#### Step 10 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Chat endpoints, non-streaming (§12.4 minus /stream). Chat/Message models, ports, persistence already existed from Step 2. User-confirmed decisions: (a) add sibling `POST /api/chats/{id}/messages` (non-stream JSON) alongside the §12.4 `/stream` (Step 11); (b) persist USER message before generation.
+
+**Sub-commits (granular convention):**
+- `ac89b62` **10.1** `ChatService implements ChatUseCase` — create/list/get/getMessages/rename/delete. REGULAR + FOLDER only (CHANNEL rejected here per D18); FOLDER requires an owned folder; list excludes channel chats (§12.4). `ChatServiceTest` (10, fakes).
+- `7676de7` **10.2** Added `sendMessage` + `SendResult` to ChatUseCase port; implemented the non-stream orchestration: resolve @mentions (wires MentionResolver — D17) → persist USER msg first → pick scope (mentions override → MENTIONS, else FOLDER, else REGULAR) → retrieve → generate → parse `[Sn]` markers into Citations (mapped to ordered text hits, out-of-range ignored) → persist ASSISTANT msg → bump quota (questions + tokens). `ChatSendMessageTest` (5, fakes + real MentionResolver/GenerationService).
+- `4edb6c6` **10.3** `ChatController` (§12.4 CRUD + non-stream `POST /{id}/messages`) + `ChatDtos` (ChatView/MessageView/CitationView/ChatDetailView/SendMessageResponse). `ChatEndpointsTest` (4, Testcontainers + fake LLM/embedder: full lifecycle incl. message send, cross-user 403, 401, FOLDER-without-id 422).
+- `<pending>` **10.4** Live acceptance + bug fix.
+
+**10.4 — live curl acceptance VERIFIED (2026-08-21):**
+- All §12.4 non-stream endpoints via curl: CREATE 201, LIST 200, GET 200, RENAME 200, DELETE 204.
+- Grounded message send end-to-end (LIVE Voyage + LIVE Claude): uploaded a .txt ("refund window is exactly 14 calendar days"), asked "According to @s10.txt, how long is the refund window?" → mode=GROUNDED, answer "...the refund window is exactly 14 calendar days from purchase. [S1]", citation label "s10.txt", mention resolved cleanly.
+- **BUG FOUND + FIXED via live run:** the @mention regex `[^\s@]+` swallowed trailing punctuation, so `@s10.txt,` resolved to the name "s10.txt," → not found → silent REGULAR fallback. Fixed the pattern to stop before trailing punctuation (`[A-Za-z0-9_][A-Za-z0-9_.\-]*[A-Za-z0-9_]`), added 2 regression tests. This was invisible to unit tests (they used clean names) — only the live run surfaced it.
+- Also observed one transient Voyage "Connection reset" on ingestion (network blip, not a code issue) — retry succeeded; worth noting ingestion has no automatic embed-retry yet (candidate hardening later).
+
+**Verification:** live acceptance as above; full offline suite **167 tests, 0 failures, 1 skipped** (env-gated live Claude test). Was 145 end of Step 9; +22 across Step 10 (10 + 5 + 4 + 2 regex regression, one prior count shift).
+
+**Next:** Step 11 (SSE streaming — /messages/stream, server-side tool-use for query_spreadsheet).
