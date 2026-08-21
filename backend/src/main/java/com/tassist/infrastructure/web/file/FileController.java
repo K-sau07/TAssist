@@ -1,6 +1,7 @@
 package com.tassist.infrastructure.web.file;
 
 import com.tassist.domain.model.File;
+import com.tassist.domain.port.in.QuotaUseCase;
 import com.tassist.domain.port.in.FileUseCase;
 import com.tassist.domain.port.in.FileUseCase.UploadCommand;
 import com.tassist.domain.vo.FileId;
@@ -26,8 +27,10 @@ import java.util.List;
 public class FileController {
 
     private final FileUseCase files;
+    private final QuotaUseCase quota;
 
-    public FileController(FileUseCase files) { this.files = files; }
+    public FileController(FileUseCase files, QuotaUseCase quota) {
+        this.quota = quota; this.files = files; }
 
     @PostMapping
     public ResponseEntity<FileView> upload(@RequestParam("file") MultipartFile multipart,
@@ -36,11 +39,15 @@ public class FileController {
         if (multipart == null || multipart.isEmpty()) {
             throw new ValidationError("file part is required");
         }
+        byte[] bytes = multipart.getBytes();
+        // §16.2: enforce monthly file-count + total-storage quota before writing.
+        quota.checkUploadAllowed(user, bytes.length);
         UploadCommand cmd = new UploadCommand(
             multipart.getOriginalFilename(),
             multipart.getContentType(),
-            multipart.getBytes());
+            bytes);
         File file = files.upload(user, cmd);
+        quota.recordUpload(user, bytes.length);
         return ResponseEntity.status(HttpStatus.CREATED)
             .location(URI.create("/api/files/" + file.id().value()))
             .body(FileView.of(file));

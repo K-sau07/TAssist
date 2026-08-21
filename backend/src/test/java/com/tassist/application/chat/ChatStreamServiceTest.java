@@ -100,7 +100,8 @@ class ChatStreamServiceTest {
         // SpreadsheetQueryService is safe here.
         return new ChatStreamService(chats, messages, new FakeMentions(), retrieval, gen, llm, files, quota,
             new PromptBuilder(), new com.tassist.application.spreadsheet.SpreadsheetQueryService(null),
-            new FakeChannelFiles());
+            new FakeChannelFiles(),
+            new com.tassist.application.quota.QuotaService(quota, 50, 524288000L, 500, 1000000L));
     }
 
     private final UserId user = UserId.newId();

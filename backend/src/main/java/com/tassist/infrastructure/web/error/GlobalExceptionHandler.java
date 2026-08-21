@@ -58,6 +58,23 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", e.getMessage(), null);
     }
 
+    @ExceptionHandler(QuotaError.QuotaExceeded.class)
+    public ResponseEntity<ApiError> quotaExceeded(QuotaError.QuotaExceeded e) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, "QUOTA_EXCEEDED", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(QuotaError.RateLimited.class)
+    public ResponseEntity<ApiError> rateLimited(QuotaError.RateLimited e) {
+        // e.getMessage() carries the retry-after seconds (set by the rate-limit filter).
+        String retryAfter = e.getMessage() == null ? "1" : e.getMessage();
+        Map<String, String> details = Map.of("retryAfterSeconds", retryAfter);
+        String correlationId = UUID.randomUUID().toString();
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .header("Retry-After", retryAfter)
+            .body(ApiError.of("RATE_LIMITED",
+                "Too many requests. Try again in " + retryAfter + " seconds.", details, correlationId));
+    }
+
     @ExceptionHandler(com.tassist.infrastructure.security.OAuthException.class)
     public ResponseEntity<ApiError> oauth(com.tassist.infrastructure.security.OAuthException e) {
         return build(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Google sign-in failed.", null);

@@ -5,6 +5,7 @@ import com.tassist.domain.error.NotFoundError;
 import com.tassist.domain.error.ValidationError;
 import com.tassist.domain.model.*;
 import com.tassist.domain.port.in.RetrievalUseCase;
+import com.tassist.domain.port.in.QuotaUseCase;
 import com.tassist.domain.port.in.RetrievalUseCase.*;
 import com.tassist.domain.port.out.*;
 import com.tassist.domain.port.out.LLMClient.LlmRequest;
@@ -55,12 +56,13 @@ public class ChatStreamService {
     private final PromptBuilder prompts;
     private final SpreadsheetQueryService sheetQuery;
     private final ChannelFileRepository channelFiles;
+    private final QuotaUseCase quota;
 
     public ChatStreamService(ChatRepository chats, MessageRepository messages, MentionResolver mentions,
                              RetrievalUseCase retrieval, GenerationService generation, LLMClient llm,
                              FileRepository files, QuotaUsageRepository quotas,
                              PromptBuilder prompts, SpreadsheetQueryService sheetQuery,
-                             ChannelFileRepository channelFiles) {
+                             ChannelFileRepository channelFiles, QuotaUseCase quota) {
         this.chats = chats;
         this.messages = messages;
         this.mentions = mentions;
@@ -72,6 +74,7 @@ public class ChatStreamService {
         this.prompts = prompts;
         this.sheetQuery = sheetQuery;
         this.channelFiles = channelFiles;
+        this.quota = quota;
     }
 
     /** Runs the full §11.6 flow, emitting events to {@code sink}. Blocking (caller runs it async). */
@@ -79,6 +82,9 @@ public class ChatStreamService {
         try {
             Chat chat = ownedChat(actingUser, chatId);
             if (content == null || content.isBlank()) throw new ValidationError("content must not be blank");
+
+            // §16.2: hard-block if the monthly question quota is exhausted (before any work/cost).
+            quota.checkQuestionAllowed(actingUser);
 
             // 1. Resolve @mentions, persist USER message.
             MentionResolver.Result mentionResult = mentions.resolve(actingUser, content);
@@ -150,7 +156,7 @@ public class ChatStreamService {
                 answer, citations, List.of(), Instant.now()));
 
             // 8. Quota.
-            bumpQuota(actingUser, inTok + outTok);
+            quota.recordQuestion(actingUser, (long) inTok + outTok);
 
             sink.emit("done", Map.of("messageId", messageId,
                 "totalInputTokens", inTok, "totalOutputTokens", outTok));
@@ -291,12 +297,6 @@ public class ChatStreamService {
         return fid -> byFile.getOrDefault(fid, "source");
     }
 
-    private void bumpQuota(UserId user, int tokens) {
-        YearMonth period = YearMonth.now();
-        QuotaUsage cur = quotas.find(user, period).orElse(new QuotaUsage(user, period, 0, 0, 0, 0));
-        quotas.save(new QuotaUsage(user, period, cur.questionsAsked() + 1,
-            cur.filesUploaded(), cur.bytesStored(), cur.tokensConsumed() + tokens));
-    }
 
     private String modeLabel(Mode m) {
         return switch (m) {
