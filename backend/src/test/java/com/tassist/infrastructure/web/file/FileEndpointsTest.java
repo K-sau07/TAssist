@@ -2,6 +2,8 @@ package com.tassist.infrastructure.web.file;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tassist.domain.port.out.EmbeddingClient;
+import com.tassist.domain.port.out.SpreadsheetRepository;
+import com.tassist.domain.vo.FileId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -69,6 +71,7 @@ class FileEndpointsTest {
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
+    @Autowired SpreadsheetRepository spreadsheets;
 
     private String tokenFor(String email) throws Exception {
         String resp = mvc.perform(post("/api/auth/signup").contentType("application/json")
@@ -145,5 +148,57 @@ class FileEndpointsTest {
     void upload_without_auth_is_401() throws Exception {
         mvc.perform(multipart("/api/files").file(txt("x.txt", "x")))
             .andExpect(status().isUnauthorized());
+    }
+
+    private MockMultipartFile csv(String name, String body) {
+        return new MockMultipartFile("file", name, "text/csv", body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void upload_csv_ingests_structured_and_is_ready() throws Exception {
+        String token = tokenFor("csv_" + System.nanoTime() + "@example.com");
+        String body = "product,region,units,revenue\nWidget A,APAC,10,100.5\nWidget B,EMEA,20,200.0\n";
+        String resp = mvc.perform(multipart("/api/files").file(csv("sales.csv", body))
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.type").value("CSV"))
+            .andExpect(jsonPath("$.status").value("READY"))
+            .andReturn().getResponse().getContentAsString();
+        String id = json.readTree(resp).get("id").asText();
+
+        var sheets = spreadsheets.findSheetsByFile(new FileId(java.util.UUID.fromString(id)));
+        org.assertj.core.api.Assertions.assertThat(sheets).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(sheets.get(0).rowCount()).isEqualTo(2);
+        org.assertj.core.api.Assertions.assertThat(spreadsheets.countRowsBySheet(sheets.get(0).id())).isEqualTo(2);
+        org.assertj.core.api.Assertions.assertThat(sheets.get(0).schemaSummaryEmbedding()).hasSize(1024);
+    }
+
+    @Test
+    void upload_xlsx_ingests_structured_and_is_ready() throws Exception {
+        String token = tokenFor("xlsx_" + System.nanoTime() + "@example.com");
+        byte[] bytes;
+        try (var wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+             var out = new java.io.ByteArrayOutputStream()) {
+            var sheet = wb.createSheet("Data");
+            var h = sheet.createRow(0);
+            h.createCell(0).setCellValue("name"); h.createCell(1).setCellValue("score");
+            for (int i = 1; i <= 5; i++) {
+                var row = sheet.createRow(i);
+                row.createCell(0).setCellValue("n" + i);
+                row.createCell(1).setCellValue(i * 10);
+            }
+            wb.write(out); bytes = out.toByteArray();
+        }
+        var file = new MockMultipartFile("file", "data.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
+        String resp = mvc.perform(multipart("/api/files").file(file)
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.type").value("XLSX"))
+            .andExpect(jsonPath("$.status").value("READY"))
+            .andReturn().getResponse().getContentAsString();
+        String id = json.readTree(resp).get("id").asText();
+        var sheets = spreadsheets.findSheetsByFile(new FileId(java.util.UUID.fromString(id)));
+        org.assertj.core.api.Assertions.assertThat(sheets.get(0).rowCount()).isEqualTo(5);
     }
 }

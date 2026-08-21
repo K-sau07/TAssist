@@ -17,6 +17,7 @@ import com.tassist.domain.vo.FileStatus;
 import com.tassist.domain.vo.FileType;
 import com.tassist.domain.vo.UserId;
 import com.tassist.application.ingest.Chunker;
+import com.tassist.application.ingest.SpreadsheetIngestService;
 import com.tassist.application.ingest.TextChunk;
 import com.tassist.infrastructure.parsing.ParserRegistry;
 import com.tassist.infrastructure.web.error.UploadExceptions;
@@ -51,15 +52,18 @@ public class FileService implements FileUseCase {
     private final Chunker chunker;
     private final EmbeddingClient embeddings;
     private final ChunkRepository chunks;
+    private final SpreadsheetIngestService spreadsheetIngest;
 
     public FileService(FileRepository files, FileStorage storage, ParserRegistry parsers,
-                       Chunker chunker, EmbeddingClient embeddings, ChunkRepository chunks) {
+                       Chunker chunker, EmbeddingClient embeddings, ChunkRepository chunks,
+                       SpreadsheetIngestService spreadsheetIngest) {
         this.files = files;
         this.storage = storage;
         this.parsers = parsers;
         this.chunker = chunker;
         this.embeddings = embeddings;
         this.chunks = chunks;
+        this.spreadsheetIngest = spreadsheetIngest;
     }
 
     @Override
@@ -103,12 +107,19 @@ public class FileService implements FileUseCase {
             fileId.value(), type, segments.size(), totalChars,
             segments.isEmpty() ? "<empty>" : preview(segments.get(0).text()));
 
-        // 6. Spreadsheets take the structured path (§11.3 / Step 6) — no chunking here.
-        //    Leave them at PARSING (D16): READY must mean queryable.
+        // 6. Spreadsheets take the structured path (§11.3 / Step 6): parse → embed schema
+        //    summary → save sheet + rows → READY. Any failure marks the file FAILED (§11.1).
         if (type == FileType.XLSX || type == FileType.CSV) {
-            log.info("File {} ({}) left at PARSING for spreadsheet structured mode (Step 6).",
-                fileId.value(), type);
-            return file;
+            try {
+                long rows = spreadsheetIngest.ingest(fileId, type, bytes);
+                File ready = files.save(withStatus(file, FileStatus.READY));
+                log.info("File {} READY: spreadsheet ingested, {} rows across sheets.",
+                    fileId.value(), rows);
+                return ready;
+            } catch (RuntimeException e) {
+                log.error("Spreadsheet ingestion failed for file {}: {}", fileId.value(), e.toString());
+                return files.save(withFailure(file, e.getMessage()));
+            }
         }
 
         // 7. Chunk → embed → save → READY. Any failure marks the file FAILED (§11.1).
