@@ -63,6 +63,7 @@ class RetrievalServiceTest {
         public Optional<File> findById(FileId id) { return Optional.ofNullable(byId.get(id.value())); }
         public List<File> findByOwner(UserId o) { return List.of(); }
         public Optional<File> findByOwnerAndContentHash(UserId o, String h) { return Optional.empty(); }
+        public List<File> findByOwnerAndFilename(UserId o, String n) { return List.of(); }
         public void delete(FileId id) {}
     }
 

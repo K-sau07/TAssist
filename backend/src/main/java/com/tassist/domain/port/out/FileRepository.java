@@ -12,5 +12,7 @@ public interface FileRepository {
     Optional<File> findById(FileId id);
     List<File> findByOwner(UserId ownerId);
     Optional<File> findByOwnerAndContentHash(UserId ownerId, String contentHash);
+    /** All files with this exact original filename owned by the user (§11.4 @mention resolution). */
+    List<File> findByOwnerAndFilename(UserId ownerId, String originalFilename);
     void delete(FileId id);
 }

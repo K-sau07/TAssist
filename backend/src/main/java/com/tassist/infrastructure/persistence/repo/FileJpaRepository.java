@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface FileJpaRepository extends JpaRepository<FileEntity, UUID> {
     List<FileEntity> findByOwnerId(UUID ownerId);
     Optional<FileEntity> findByOwnerIdAndContentHash(UUID ownerId, String contentHash);
+    List<FileEntity> findByOwnerIdAndOriginalFilename(UUID ownerId, String originalFilename);
 }

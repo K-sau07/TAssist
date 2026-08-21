@@ -19,5 +19,6 @@ public class FileRepositoryAdapter implements FileRepository {
     @Override public Optional<File> findById(FileId id) { return jpa.findById(id.value()).map(FileMapper::toDomain); }
     @Override public List<File> findByOwner(UserId ownerId) { return jpa.findByOwnerId(ownerId.value()).stream().map(FileMapper::toDomain).toList(); }
     @Override public Optional<File> findByOwnerAndContentHash(UserId ownerId, String hash) { return jpa.findByOwnerIdAndContentHash(ownerId.value(), hash).map(FileMapper::toDomain); }
+    @Override public List<File> findByOwnerAndFilename(UserId ownerId, String filename) { return jpa.findByOwnerIdAndOriginalFilename(ownerId.value(), filename).stream().map(FileMapper::toDomain).toList(); }
     @Override public void delete(FileId id) { jpa.deleteById(id.value()); }
 }
