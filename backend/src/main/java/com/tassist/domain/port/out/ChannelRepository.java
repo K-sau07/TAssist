@@ -13,5 +13,7 @@ public interface ChannelRepository {
     Optional<Channel> findByUsername(String usernameLowercased);
     List<Channel> findByOwner(UserId ownerId);
     boolean existsByUsername(String usernameLowercased);
+    List<Channel> searchByUsernameOrDisplayName(String queryLowercased, int limit);
+    List<Channel> findPublic(int page, int pageSize);
     void delete(ChannelId id);
 }
