@@ -44,7 +44,8 @@ class ChatServiceTest {
     private final FakeChats chats = new FakeChats();
     private final FakeMessages messages = new FakeMessages();
     private final FakeFolders folders = new FakeFolders();
-    private final ChatService svc = new ChatService(chats, messages, folders);
+    private final ChatService svc = new ChatService(chats, messages, folders,
+        null, null, null, null, null); // send-message deps unused by CRUD tests
     private final UserId user = UserId.newId();
     private final UserId other = UserId.newId();
 

@@ -28,6 +28,11 @@ public interface ChatUseCase {
 
     void delete(UserId actingUser, ChatId chatId);
 
+    /** Send a user message; runs retrieval+generation and persists both messages (non-streaming, Step 10). */
+    SendResult sendMessage(UserId actingUser, ChatId chatId, String content);
+
+    record SendResult(Message userMessage, Message assistantMessage, String mode, List<String> warnings) {}
+
     record CreateChatCommand(ChatScope scope, Optional<FolderId> folderId) {
         public CreateChatCommand {
             if (scope == null) throw new IllegalArgumentException("CreateChatCommand.scope must not be null");
