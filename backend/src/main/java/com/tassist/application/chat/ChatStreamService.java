@@ -82,9 +82,8 @@ public class ChatStreamService {
         try {
             Chat chat = ownedChat(actingUser, chatId);
             if (content == null || content.isBlank()) throw new ValidationError("content must not be blank");
-
-            // §16.2: hard-block if the monthly question quota is exhausted (before any work/cost).
-            quota.checkQuestionAllowed(actingUser);
+            // §16.2 quota is pre-checked in the controller (clean HTTP 429 before the stream opens);
+            // here we only record consumption at the end.
 
             // 1. Resolve @mentions, persist USER message.
             MentionResolver.Result mentionResult = mentions.resolve(actingUser, content);

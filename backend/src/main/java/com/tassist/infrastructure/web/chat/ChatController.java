@@ -7,6 +7,7 @@ import com.tassist.domain.port.in.ChatUseCase;
 import com.tassist.domain.port.in.ChatUseCase.CreateChatCommand;
 import com.tassist.domain.port.in.ChatUseCase.SendResult;
 import com.tassist.application.chat.ChatStreamService;
+import com.tassist.domain.port.in.QuotaUseCase;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tassist.domain.vo.ChatId;
 import com.tassist.domain.vo.ChatScope;
@@ -33,13 +34,15 @@ public class ChatController {
 
     private final ChatUseCase chats;
     private final ChatStreamService streamer;
+    private final QuotaUseCase quota;
     private final ObjectMapper json = new ObjectMapper();
     private final ExecutorService streamPool = Executors.newCachedThreadPool();
     private final ScheduledExecutorService pinger = Executors.newScheduledThreadPool(2);
 
-    public ChatController(ChatUseCase chats, ChatStreamService streamer) {
+    public ChatController(ChatUseCase chats, ChatStreamService streamer, QuotaUseCase quota) {
         this.chats = chats;
         this.streamer = streamer;
+        this.quota = quota;
     }
 
     @GetMapping
@@ -102,6 +105,7 @@ public class ChatController {
         UserId user = principal(auth);
         if (req == null || req.content() == null) throw new ValidationError("content is required");
         ChatId cid = chatId(chatId);
+        quota.checkQuestionAllowed(user); // §16.2 pre-stream: clean 429 before headers are sent
         SseEmitter emitter = new SseEmitter(0L); // no timeout; keep-alive pings hold it open
         SseStreamSink sink = new SseStreamSink(emitter, json, pinger);
         streamPool.submit(() -> streamer.streamMessage(user, cid, req.content(), sink));
