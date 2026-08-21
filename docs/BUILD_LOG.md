@@ -475,3 +475,19 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Verification:** full suite **201 tests, 0 failures, 1 skipped**. Live curl CRUD as above.
 
 **Next:** Step 15 (frontend scaffolding).
+
+
+#### Step 15 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Frontend scaffolding (§13 architecture, §15 design tokens). Deps pre-installed at Step 0; this step built config, tokens, lib layer, router, guard, and page stubs. First frontend step — shift from Java/curl to React/TS.
+
+**Sub-commits:**
+- `0ccb4af` **15.1** Build config: `tailwind.config.js` (maps spec tokens → Tailwind theme via CSS vars), `postcss.config.js`, `vite.config.ts` (proxy /api→:8080, `@/` alias), tsconfig path alias. `design/theme.css` (§15.2–15.4 tokens VERBATIM — surfaces/text/brand/accents, fluid type scale, radii, shadows) + `design/tokens.ts` (Framer spring presets, spacing scale, page transition). `index.css` wires Tailwind + Google Fonts (Fraunces/Inter/JetBrains Mono) + reduced-motion base.
+- `45c7cbd` **15.2** Lib layer (§13.3): `api/client.ts` (fetch wrapper, auth-header injection, ApiError mapping incl. 401→clear + retryAfterSeconds), `auth/store.ts` (the one global Zustand store — token+user, localStorage-persisted, hydrate/clear), `queryClient.ts` (TanStack Query, no-retry-on-4xx), `api/auth.ts` (signup/login/logout matching backend AuthResponse), `format.ts` (fileSize/timeAgo/ellipsis).
+- `b2f34c8` **15.3-15.4** `router.tsx` (React Router v6 data mode, full 16-route table from §13.2), `auth/guard.tsx` (`<RequireAuth>` → `/login?next=<current>` when no token), 16 page stubs across feature folders, `Button` primitive (themed, spring hover, focus ring), `cn` util, `Stub` shell, App/main providers (QueryClientProvider + RouterProvider). Title → TAssist.
+
+**Verification:** `npm run typecheck` clean (exit 0); `npm run build` success (105 modules, CSS 9.68kB / JS 292kB); dev server serves, module graph transforms with zero errors. Acceptance met: app runs, empty pages navigable, `<RequireAuth>` bounces unauthenticated users to /login.
+
+**Notes:** shadcn deferred per D9 — using lightweight themed primitives (Button) driven by the token system rather than the full shadcn install; more primitives added as features need them. No new tokens invented (§20 rule).
+
+**Next:** Step 16 (frontend auth flow — login/signup/OAuth pages).
