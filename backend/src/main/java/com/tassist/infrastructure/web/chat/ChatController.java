@@ -6,6 +6,8 @@ import com.tassist.domain.model.Chat;
 import com.tassist.domain.port.in.ChatUseCase;
 import com.tassist.domain.port.in.ChatUseCase.CreateChatCommand;
 import com.tassist.domain.port.in.ChatUseCase.SendResult;
+import com.tassist.application.chat.ChatStreamService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tassist.domain.vo.ChatId;
 import com.tassist.domain.vo.ChatScope;
 import com.tassist.domain.vo.FolderId;
@@ -15,10 +17,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /** §12.4 private-library chat endpoints (non-streaming). /messages/stream is Step 11. */
 @RestController
@@ -26,8 +32,15 @@ import java.util.Optional;
 public class ChatController {
 
     private final ChatUseCase chats;
+    private final ChatStreamService streamer;
+    private final ObjectMapper json = new ObjectMapper();
+    private final ExecutorService streamPool = Executors.newCachedThreadPool();
+    private final ScheduledExecutorService pinger = Executors.newScheduledThreadPool(2);
 
-    public ChatController(ChatUseCase chats) { this.chats = chats; }
+    public ChatController(ChatUseCase chats, ChatStreamService streamer) {
+        this.chats = chats;
+        this.streamer = streamer;
+    }
 
     @GetMapping
     public ResponseEntity<List<ChatView>> list(Authentication auth) {
@@ -80,6 +93,19 @@ public class ChatController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new SendMessageResponse(
             MessageView.of(r.userMessage()), MessageView.of(r.assistantMessage()),
             r.mode(), r.warnings()));
+    }
+
+    /** §12.4 §11.6 streaming send. Returns an SSE stream of start/sources/token/citation/done events. */
+    @PostMapping("/{chatId}/messages/stream")
+    public SseEmitter stream(@PathVariable String chatId,
+                             @RequestBody SendMessageRequest req, Authentication auth) {
+        UserId user = principal(auth);
+        if (req == null || req.content() == null) throw new ValidationError("content is required");
+        ChatId cid = chatId(chatId);
+        SseEmitter emitter = new SseEmitter(0L); // no timeout; keep-alive pings hold it open
+        SseStreamSink sink = new SseStreamSink(emitter, json, pinger);
+        streamPool.submit(() -> streamer.streamMessage(user, cid, req.content(), sink));
+        return emitter;
     }
 
     // --- helpers ---
