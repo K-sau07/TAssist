@@ -412,3 +412,24 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 #### Deviation D19 (2026-08-21) — Channel analytics deferred out of Step 12
 
 Spec §12.5 lists three owner analytics endpoints (`/analytics/questions`, `/analytics/topics`, `/analytics/coverage`). These are a distinct aggregation feature that sits naturally with quota/usage aggregation, and the §20 Step 12 acceptance does not exercise them (it tests the create→join→approve→ask-via-stream path). To keep Step 12 focused on channels + memberships + channel chat, analytics is deferred to a later step (target: with Step 13 quotas or a dedicated analytics step). User approved the deferral. No product decision changed — the endpoints remain in scope, just sequenced later.
+
+
+#### Step 12 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Channels + memberships + channel chat (§12.5/§12.6). Domain models, ports, entities, adapters, mappers, VOs pre-existed from Steps 1–2; this step built the application services, controllers, and wired CHANNEL-scope retrieval. Analytics deferred (D19).
+
+**Sub-commits:**
+- `dc77e45` **12.1** `ChannelService` (§12.5 owner side): create/list/get(@username)/edit/delete, search + directory (PUBLIC only), attachFile/renameLabel/detachFile/listFiles. Ownership enforced; files attached with an owner-set displayLabel (§7.5 filename hiding). Added `searchByUsernameOrDisplayName` + `findPublic` to ChannelRepository (port+adapter+JPA).
+- `e305ccb` **12.2** `MembershipService`: full state machine (§8) — requestJoin/leave + owner approve/deny/kick/ban/reinvite. Re-request from REJECTED/LEFT requires a message when the channel demands it; BANNED terminal except owner reinvite → PENDING. 9 unit tests.
+- `1c663cd` **12.3** `ChannelController` + `MembershipController` (all §12.5/§12.6 endpoints) + `ChannelDtos`. Added `myMembership` self-lookup to MembershipUseCase so the @username view can show the caller's own status without owner rights. D19 recorded (analytics deferred).
+- `b383ef0` **12.4** Wired CHANNEL-scope retrieval — removed the D18 stub; `RetrievalService.channelCandidates` resolves the channel's attached READY files (ChannelFileRepository injected). Built `ChannelChatService` (APPROVED-membership gate, channel chat CRUD) + `ChannelChatController` (§12.6 list/create/get + SSE stream). `ChatStreamService` made channel-aware (CHANNEL scope + channelId into RetrievalQuery).
+- `7e94daa` **12.5** §11.8/§7.5 fix (caught in live acceptance): channel citations now use the owner's `display_label`, never the filename. Threaded an optional label resolver through `GenerationService.plan/buildSources` and `ChatStreamService.buildCitations`; channel chats build a fileId→display_label map from ChannelFileRepository.
+
+**Live acceptance VERIFIED (2026-08-21) — the §20 two-user flow:**
+Owner signs up → creates channel @cs101 → attaches file as "Course Syllabus" (201). Visitor signs up → @username view shows myStatus=null → join with message → PENDING. Owner lists PENDING (sees visitor + request message) → approve (200). Visitor creates a channel chat → asks "What chapters does the final exam cover?" via the channel SSE stream → grounded answer "chapters 5 through 9 [S1]" with sources (similarity 0.85) + citation. **Source label correctly showed "Course Syllabus", not the filename** (§7.5 verified after the 12.5 fix).
+
+**Verification:** full suite **193 tests, 0 failures, 1 skipped**. Live two-user curl acceptance as above.
+
+**Deferred:** channel analytics endpoints (D19). Non-stream channel message endpoint not added (spec only defines the stream variant for channel chat).
+
+**Next:** Step 13 (quotas + rate limiting).
