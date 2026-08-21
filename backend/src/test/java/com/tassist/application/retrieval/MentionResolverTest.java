@@ -50,6 +50,15 @@ class MentionResolverTest {
         assertThat(resolver.extractNames("@x.pdf @x.pdf")).containsExactly("x.pdf");
     }
 
+    @Test void trailing_comma_not_part_of_name() {
+        assertThat(resolver.extractNames("According to @s10.txt, how long?"))
+            .containsExactly("s10.txt");
+    }
+
+    @Test void trailing_period_not_part_of_name() {
+        assertThat(resolver.extractNames("see @report.pdf.")).containsExactly("report.pdf");
+    }
+
     @Test void no_mentions_empty() {
         assertThat(resolver.extractNames("just a plain question")).isEmpty();
     }

@@ -23,7 +23,7 @@ public class MentionResolver {
 
     // @ followed by a filename token: letters, digits, _-. and spaces are excluded;
     // supports optional quoting for names with spaces: @"my file.pdf"
-    private static final Pattern MENTION = Pattern.compile("@(?:\"([^\"]+)\"|([^\\s@]+))");
+    private static final Pattern MENTION = Pattern.compile("@(?:\"([^\"]+)\"|([A-Za-z0-9_][A-Za-z0-9_.\\-]*[A-Za-z0-9_]|[A-Za-z0-9_]))");
 
     private final FileRepository files;
 
