@@ -1,6 +1,7 @@
 package com.tassist.application.generation;
 
 import com.tassist.domain.model.File;
+import com.tassist.domain.vo.FileId;
 import com.tassist.domain.port.in.RetrievalUseCase.RetrievalResult;
 import com.tassist.domain.port.in.RetrievalUseCase.TextHit;
 import com.tassist.domain.port.out.FileRepository;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Non-streaming generation (§11.5/§11.6 non-stream path, Step 9). Picks a prompt mode from the
@@ -61,7 +63,7 @@ public class GenerationService {
         }
 
         // Grounded mode.
-        List<PromptBuilder.Source> sources = buildSources(retrieval.textHits());
+        List<PromptBuilder.Source> sources = buildSources(retrieval.textHits(), null);
         LlmResponse r = llm.complete(prompts.grounded(question, sources));
 
         // §11.6 step 7: if grounded returns the sentinel, rerun in fallback mode.
@@ -86,6 +88,12 @@ public class GenerationService {
                        List<PromptBuilder.Source> sources) {}
 
     public Plan plan(String question, RetrievalResult retrieval, boolean regularScope) {
+        return plan(question, retrieval, regularScope, null);
+    }
+
+    /** {@code labelFor} overrides the source label per file (channel chats → display_label, §11.8). */
+    public Plan plan(String question, RetrievalResult retrieval, boolean regularScope,
+                     Function<FileId, String> labelFor) {
         if (regularScope) {
             return new Plan(Mode.REGULAR, prompts.regular(question), List.of());
         }
@@ -94,7 +102,7 @@ public class GenerationService {
         if (!haveHits) {
             return new Plan(Mode.FALLBACK, prompts.fallback(question), List.of());
         }
-        List<PromptBuilder.Source> sources = buildSources(retrieval.textHits());
+        List<PromptBuilder.Source> sources = buildSources(retrieval.textHits(), labelFor);
         return new Plan(Mode.GROUNDED, prompts.grounded(question, sources), sources);
     }
 
@@ -108,14 +116,16 @@ public class GenerationService {
         return new GenerationOutcome(r.content(), Mode.FALLBACK, r.inputTokens(), r.outputTokens(), warnings);
     }
 
-    /** Build numbered sources with §11.8 private-library labels (filename + positional hint). */
-    private List<PromptBuilder.Source> buildSources(List<TextHit> hits) {
+    /** Build numbered sources with §11.8 labels. If {@code labelFor} is set (channel chats), it supplies
+     *  the base label (display_label); otherwise the private-library filename is used. Positional hint added either way. */
+    private List<PromptBuilder.Source> buildSources(List<TextHit> hits, Function<FileId, String> labelFor) {
         List<PromptBuilder.Source> sources = new ArrayList<>(hits.size());
         for (TextHit hit : hits) {
             File f = files.findById(hit.chunk().fileId()).orElse(null);
-            String filename = f != null ? f.originalFilename() : "source";
             com.tassist.domain.vo.FileType type = f != null ? f.type() : com.tassist.domain.vo.FileType.TXT;
-            String label = CitationLabeler.label(filename, type, hit.chunk().metadata());
+            String base = labelFor != null ? labelFor.apply(hit.chunk().fileId())
+                : (f != null ? f.originalFilename() : "source");
+            String label = CitationLabeler.label(base, type, hit.chunk().metadata());
             sources.add(new PromptBuilder.Source(label, hit.chunk().text()));
         }
         return sources;

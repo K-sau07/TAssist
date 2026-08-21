@@ -88,12 +88,19 @@ class ChatStreamServiceTest {
     private final FakeQuota quota = new FakeQuota();
     private final FakeRetrieval retrieval = new FakeRetrieval();
 
+    static class FakeChannelFiles implements com.tassist.domain.port.out.ChannelFileRepository {
+        public com.tassist.domain.model.ChannelFile add(com.tassist.domain.model.ChannelFile cf){ return cf; }
+        public void remove(com.tassist.domain.vo.ChannelId c, FileId f){}
+        public java.util.List<com.tassist.domain.model.ChannelFile> findByChannel(com.tassist.domain.vo.ChannelId c){ return java.util.List.of(); }
+        public java.util.List<FileId> findFileIdsByChannel(com.tassist.domain.vo.ChannelId c){ return java.util.List.of(); }
+    }
     private ChatStreamService svc(LLMClient llm) {
         GenerationService gen = new GenerationService(new PromptBuilder(), llm, files);
         // spreadsheet path is never exercised in these tests (no spreadsheet hits), so a repo-less
         // SpreadsheetQueryService is safe here.
         return new ChatStreamService(chats, messages, new FakeMentions(), retrieval, gen, llm, files, quota,
-            new PromptBuilder(), new com.tassist.application.spreadsheet.SpreadsheetQueryService(null));
+            new PromptBuilder(), new com.tassist.application.spreadsheet.SpreadsheetQueryService(null),
+            new FakeChannelFiles());
     }
 
     private final UserId user = UserId.newId();

@@ -13,6 +13,7 @@ import com.tassist.application.generation.CitationLabeler;
 import com.tassist.application.generation.GenerationService;
 import com.tassist.application.generation.GenerationService.Mode;
 import com.tassist.application.generation.PromptBuilder;
+import com.tassist.domain.port.out.ChannelFileRepository;
 import com.tassist.application.spreadsheet.SpreadsheetQueryService;
 import com.tassist.application.spreadsheet.SpreadsheetQueryService.ToolCallInput;
 import com.tassist.application.spreadsheet.SpreadsheetQueryService.Filter;
@@ -30,6 +31,7 @@ import java.time.YearMonth;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.function.Function;
 
 /**
  * SSE streaming orchestration (§11.6). Mirrors ChatService.sendMessage but streams tokens live and
@@ -52,11 +54,13 @@ public class ChatStreamService {
     private final QuotaUsageRepository quotas;
     private final PromptBuilder prompts;
     private final SpreadsheetQueryService sheetQuery;
+    private final ChannelFileRepository channelFiles;
 
     public ChatStreamService(ChatRepository chats, MessageRepository messages, MentionResolver mentions,
                              RetrievalUseCase retrieval, GenerationService generation, LLMClient llm,
                              FileRepository files, QuotaUsageRepository quotas,
-                             PromptBuilder prompts, SpreadsheetQueryService sheetQuery) {
+                             PromptBuilder prompts, SpreadsheetQueryService sheetQuery,
+                             ChannelFileRepository channelFiles) {
         this.chats = chats;
         this.messages = messages;
         this.mentions = mentions;
@@ -67,6 +71,7 @@ public class ChatStreamService {
         this.quotas = quotas;
         this.prompts = prompts;
         this.sheetQuery = sheetQuery;
+        this.channelFiles = channelFiles;
     }
 
     /** Runs the full §11.6 flow, emitting events to {@code sink}. Blocking (caller runs it async). */
@@ -94,7 +99,11 @@ public class ChatStreamService {
                 actingUser, content, scope, chat.folderId(), chat.channelId(), mentionedFiles));
 
             // 4. Plan mode + request (shared with non-stream path).
-            GenerationService.Plan plan = generation.plan(content, retrieved, regularScope);
+            // §11.8: channel chats label sources by the owner's display_label, never the filename.
+            final Function<com.tassist.domain.vo.FileId, String> labelFor =
+                (scope == Scope.CHANNEL && chat.channelId().isPresent())
+                    ? channelLabelResolver(chat.channelId().get()) : null;
+            GenerationService.Plan plan = generation.plan(content, retrieved, regularScope, labelFor);
             String messageId = MessageId.newId().value().toString();
 
             // Spreadsheet-tool mode: a spreadsheet schema was among the hits (§11.5/§11.7).
@@ -136,7 +145,7 @@ public class ChatStreamService {
             }
 
             // 7. Persist ASSISTANT message with citations.
-            List<Citation> citations = buildCitations(answer, retrieved.textHits());
+            List<Citation> citations = buildCitations(answer, retrieved.textHits(), labelFor);
             messages.save(new Message(MessageId.newId(), chatId, MessageRole.ASSISTANT,
                 answer, citations, List.of(), Instant.now()));
 
@@ -253,7 +262,8 @@ public class ChatStreamService {
         return out;
     }
 
-    private List<Citation> buildCitations(String answer, List<TextHit> hits) {
+    private List<Citation> buildCitations(String answer, List<TextHit> hits,
+                                          Function<com.tassist.domain.vo.FileId, String> labelFor) {
         if (answer == null || hits.isEmpty()) return List.of();
         Set<Integer> cited = new LinkedHashSet<>();
         Matcher m = CITE.matcher(answer);
@@ -265,12 +275,20 @@ public class ChatStreamService {
         for (int n : cited) {
             Chunk chunk = hits.get(n - 1).chunk();
             File f = files.findById(chunk.fileId()).orElse(null);
-            String filename = f != null ? f.originalFilename() : "source";
-            String label = CitationLabeler.label(filename,
+            String base = labelFor != null ? labelFor.apply(chunk.fileId())
+                : (f != null ? f.originalFilename() : "source");
+            String label = CitationLabeler.label(base,
                 f != null ? f.type() : FileType.TXT, chunk.metadata());
             out.add(new Citation(chunk.fileId(), chunk.id(), label, Optional.of(chunk.text())));
         }
         return out;
+    }
+
+    /** §11.8: maps a channel's file ids to the owner-set display_label (visitors never see filenames). */
+    private Function<com.tassist.domain.vo.FileId, String> channelLabelResolver(com.tassist.domain.vo.ChannelId channelId) {
+        Map<com.tassist.domain.vo.FileId, String> byFile = new java.util.HashMap<>();
+        for (var cf : channelFiles.findByChannel(channelId)) byFile.put(cf.fileId(), cf.displayLabel());
+        return fid -> byFile.getOrDefault(fid, "source");
     }
 
     private void bumpQuota(UserId user, int tokens) {
