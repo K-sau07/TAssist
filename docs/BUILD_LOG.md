@@ -316,3 +316,25 @@ Status key: ⬜ not started · 🔨 in progress · ✅ done & verified · ⏸ bl
 **Verification:** live curl acceptance as above; full automated suite **109 tests, 0 failures** (was 91; +18: 13 service + 5 endpoint). No regressions.
 
 **Next:** Step 8 (retrieval service).
+
+
+#### Step 8 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Retrieval service (§11.4) — REGULAR/FOLDER/MENTIONS. Ports + records (RetrievalUseCase, RetrievalQuery, RetrievalResult, TextHit, SpreadsheetHit) already existed from Step 2. ChunkRepository.searchSimilar + SpreadsheetRepository.searchSimilarSheets already existed (Steps 2/6).
+
+**Decisions (this step):**
+- **D17:** @filename → FileId resolution lives UPSTREAM of retrieve (user-confirmed). RetrievalService takes pre-resolved mentionedFileIds; a standalone `MentionResolver` does name→id + warnings for the message layer to call. Matches §12.4 ("server extracts @filename mentions itself") and the existing port shape.
+- **D18:** CHANNEL-scope retrieval DEFERRED until channels exist (Step 12+, user-confirmed). RetrievalService throws ValidationError("CHANNEL-scope retrieval is not yet supported") for now; REGULAR/FOLDER/MENTIONS fully implemented.
+
+**Sub-commits (granular convention):**
+- `e78e227` **8.1** `RetrievalService implements RetrievalUseCase`: REGULAR→empty (no search); mentions override scope (§11.4 step 2); FOLDER candidate files via folder_file with owner check (Forbidden if not owned); single query embed; text search (topK 6 folder / 8 mentions) + spreadsheet schema search (topK 3); 0.4 similarity floor (>= kept); allBelowThreshold set only when raw hits existed but all filtered. `RetrievalServiceTest` (8, fakes: every scope branch, threshold boundary, topK, ownership, CHANNEL-deferred).
+- `e8eee4d` **8.2** `MentionResolver`: regex `@name` / `@"quoted name"` extraction (order-preserving, deduped) → `FileRepository.findByOwnerAndFilename` → owned FileIds + "File 'x' not found; ignoring." warnings; duplicate filenames resolve to union. Added `findByOwnerAndFilename` to FileRepository port + JPA repo (`findByOwnerIdAndOriginalFilename`, returns List — names not unique per owner) + adapter. `MentionResolverTest` (8). Patched the two FakeFiles test doubles for the new port method.
+- `<pending>` **8.3** `RetrievalIntegrationTest` (5, Testcontainers + real pgvector, controlled deterministic embedder mapping "apac" text→axis 0 else axis 1 so cosine is fully controlled): folder scope returns only folder files ranked by relevance (offtopic dropped by floor); folder excludes non-member files; mentions target exactly mentioned files; REGULAR retrieves nothing; cross-user mention dropped + warned.
+
+**§20 acceptance:** MET — `RetrievalService.retrieve()` called from an integration test returns correct chunks scoped by folder and by mentions, over the real vector-search path.
+
+**Verification:** full suite **130 tests, 0 failures** (was 109; +21: 8 service + 8 resolver + 5 integration). No regressions.
+
+**Deferred:** CHANNEL scope (D18) → wire when channels land. MentionResolver is built but not yet called anywhere — the message/chat layer (Step 10) will invoke it before retrieve.
+
+**Next:** Step 9 (LLM client + non-streaming generation).
