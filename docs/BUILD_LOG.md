@@ -566,3 +566,14 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Verification:** typecheck + build green. Live full visitor journey (:8090, two accounts): visitor searches → finds channel → landing shows myStatus=None → requests (PENDING) → owner approves → status APPROVED → visitor creates channel chat → asks "When is the project due?" → streamed grounded answer "due December 15th [S1]", source labeled "Project Brief" (display_label, not filename, §7.5), similarity 0.80. Exact §20 acceptance met.
 
 **Next:** Step 21 (widgets — notes + todos UI).
+
+
+#### Step 21 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Dashboard widgets UI (§14.5 widgets row) — notes + todos. Backend done at Step 14; this is the frontend. Drag-reorder for todos deferred to Phase 2 (spec allows).
+
+**Files:** `lib/api/widgets.ts` (note GET/PUT, todo list/create/patch/delete) + `useWidgets` hooks; `features/widgets/NotesCard.tsx` (edit-in-place, autosaves 2s after idle typing with Saving/Saved indicator) + `TodosCard.tsx` (add via Enter/button, toggle done, delete on hover); wired as a two-column row above the Files section on the Dashboard.
+
+**Verification:** typecheck + build green. Live (:8090): note GET auto-creates → PUT (autosave path) saves + persists; todo add → toggle done → delete (204) → empty. All widget API calls confirmed.
+
+**Next:** Step 22 (landing page + visual polish — Framer Motion + Lottie).
