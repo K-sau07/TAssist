@@ -538,3 +538,17 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Verification:** typecheck + production build green. Live acceptance against a keyed backend (:8090): folder chat, asked "What is the refund window?" → the exact SSE sequence the frontend consumes: start(grounded) → sources(S1 + snippet) → token* → citation(num:1) → done(tokens). Answer grounded + cited: "refund window is 30 days… [S1]". Every event maps to a handler in useChatStream/MessageList; [Sn] markers render as chips → snippet drawer.
 
 **Next:** Step 19 (frontend channels — owner side).
+
+
+#### Step 19 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Frontend channels, owner side (§14.8–14.10). MyChannels, Create channel, Manage tabs. Analytics tab deferred (D19). File-attach folded into the Manage → Files tab rather than a create-step-2 (cleaner flow; channel is created first, files attached after).
+
+**Sub-commits:**
+- `0347bfa` **19.1** `lib/api/channels.ts` (channel CRUD, files attach/rename-label/detach, membership owner actions approve/deny/kick/ban + visitor requestJoin/leave) + `useChannels` hooks.
+- `b2da634` **19.2** `MyChannelsPage` (grid + empty state) + `CreateChannelPage` (RHF+Zod, live username availability via /channels/search on blur, visibility select, require-message toggle).
+- `<this>` **19.3** `ChannelManagePage` (tab shell) + tabs: `OverviewTab` (edit metadata, save, double-confirm delete danger zone), `FilesTab` (attached list showing display labels + library picker with per-file label input + remove-with-warning), `MembersTab` (PENDING/APPROVED/REJECTED/BANNED/LEFT sub-tabs, per-row approve/deny on pending + kick/ban on approved).
+
+**Verification:** typecheck + build green. Live acceptance (:8090, two accounts): owner creates channel → attaches file (shows label "Schedule", not filename, §7.5) → visitor (2nd account) requests join (PENDING + message) → owner lists pending (sees message) → approves → status APPROVED, approved count 1. Every owner-side API call the UI makes is confirmed.
+
+**Next:** Step 20 (frontend channels — visitor side: discover, landing, request access, channel chat).
