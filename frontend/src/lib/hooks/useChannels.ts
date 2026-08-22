@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  createChannel,
   listMyChannels, listChannelFiles, listMembers, attachChannelFile, detachChannelFile,
-  approveMember, denyMember, kickMember, banMember, type MembershipStatus,
+  approveMember, denyMember, kickMember, banMember,
+  type MembershipStatus, type CreateChannelInput,
 } from '@/lib/api/channels'
 
 export function useMyChannelsQuery() {
@@ -37,5 +39,13 @@ export function useMemberActionMutation(channelId: string) {
     mutationFn: (v: { action: 'approve' | 'deny' | 'kick' | 'ban'; membershipId: string }) =>
       run(v.action, v.membershipId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['channel', channelId, 'members'] }),
+  })
+}
+
+export function useCreateChannelMutation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateChannelInput) => createChannel(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['channels', 'mine'] }),
   })
 }

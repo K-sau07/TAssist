@@ -37,8 +37,8 @@ export const router = createBrowserRouter([
   { path: '/app/discover', element: protect(<DiscoverChannelsPage />) },
   { path: '/app/settings', element: protect(<SettingsPage />) },
 
-  { path: '/c/@:username', element: protect(<ChannelLandingPage />) },
-  { path: '/c/@:username/chats/:chatId', element: protect(<ChannelChatPage />) },
+  { path: '/c/:handle', element: protect(<ChannelLandingPage />) },
+  { path: '/c/:handle/chats/:chatId', element: protect(<ChannelChatPage />) },
 
   { path: '*', element: <NotFoundPage /> },
 ])

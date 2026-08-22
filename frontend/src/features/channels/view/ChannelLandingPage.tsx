@@ -8,7 +8,8 @@ import { listChannelChats, createChannelChat } from '@/lib/api/channelChat'
 import { Hash } from 'lucide-react'
 
 export default function ChannelLandingPage() {
-  const { username = '' } = useParams()
+  const { handle = '' } = useParams()
+  const username = handle.replace(/^@/, '')
   const navigate = useNavigate()
   const { data, isLoading } = useChannelPublicQuery(username)
   const requestJoin = useRequestJoinMutation(username)

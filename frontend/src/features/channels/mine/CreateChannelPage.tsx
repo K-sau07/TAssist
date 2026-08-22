@@ -6,7 +6,8 @@ import { z } from 'zod'
 import { AppLayout } from '@/features/dashboard/shell/AppLayout'
 import { Input } from '@/design/components/Input'
 import { Button } from '@/design/components/Button'
-import { createChannel, searchChannels, type Visibility } from '@/lib/api/channels'
+import { searchChannels, type Visibility } from '@/lib/api/channels'
+import { useCreateChannelMutation } from '@/lib/hooks/useChannels'
 import { ApiError } from '@/lib/api/client'
 
 const schema = z.object({
@@ -21,6 +22,7 @@ type FormValues = z.infer<typeof schema>
 
 export default function CreateChannelPage() {
   const navigate = useNavigate()
+  const createChannelMut = useCreateChannelMutation()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [nameStatus, setNameStatus] = useState<'idle' | 'checking' | 'taken' | 'free'>('idle')
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } =
@@ -39,7 +41,7 @@ export default function CreateChannelPage() {
   async function onSubmit(values: FormValues) {
     setSubmitError(null)
     try {
-      const c = await createChannel({
+      const c = await createChannelMut.mutateAsync({
         username: values.username.toLowerCase(),
         displayName: values.displayName,
         description: values.description ?? '',

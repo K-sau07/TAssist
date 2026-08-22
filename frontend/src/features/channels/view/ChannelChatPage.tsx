@@ -12,7 +12,8 @@ import type { SourceItem } from '@/lib/sse/types'
 import type { MessageView } from '@/lib/api/chats'
 
 export default function ChannelChatPage() {
-  const { username = '', chatId = '' } = useParams()
+  const { handle = '', chatId = '' } = useParams()
+  const username = handle.replace(/^@/, '')
   const { data: pub } = useChannelPublicQuery(username)
   const channelId = pub?.channel.id ?? ''
 
