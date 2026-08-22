@@ -552,3 +552,17 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Verification:** typecheck + build green. Live acceptance (:8090, two accounts): owner creates channel → attaches file (shows label "Schedule", not filename, §7.5) → visitor (2nd account) requests join (PENDING + message) → owner lists pending (sees message) → approves → status APPROVED, approved count 1. Every owner-side API call the UI makes is confirmed.
 
 **Next:** Step 20 (frontend channels — visitor side: discover, landing, request access, channel chat).
+
+
+#### Step 20 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Frontend channels, visitor side (§14.11–14.13). Discover, channel landing + request-access, visitor channel chat (reuses Step 18 streaming components).
+
+**Sub-commits:**
+- `cb5fbad` **20.1** `lib/api/channelChat.ts` (list/create/get channel chats + channelChatStreamPath) + `useDiscover` hooks (directory, public-view-by-username, requestJoin, leave).
+- `c207f37` **20.2** `DiscoverChannelsPage` (live search + PUBLIC directory grid) + `ChannelLandingPage` (state-aware access panel: OWNER→manage, APPROVED→open chat + my-chats list, PENDING→awaiting card, null/REJECTED/LEFT→request-access with message, BANNED→blocked).
+- `<this>` **20.3** `ChannelChatPage` + `useChannelChatStream` — resolves @username→channelId, reuses MessageList/Composer/SnippetDrawer with the channel stream path + ['channel-chat', id] query key.
+
+**Verification:** typecheck + build green. Live full visitor journey (:8090, two accounts): visitor searches → finds channel → landing shows myStatus=None → requests (PENDING) → owner approves → status APPROVED → visitor creates channel chat → asks "When is the project due?" → streamed grounded answer "due December 15th [S1]", source labeled "Project Brief" (display_label, not filename, §7.5), similarity 0.80. Exact §20 acceptance met.
+
+**Next:** Step 21 (widgets — notes + todos UI).
