@@ -3,6 +3,7 @@ import {
   listFolders, createFolder, renameFolder, deleteFolder,
   listFolderFiles, addFilesToFolder, removeFileFromFolder, type FolderView,
 } from '@/lib/api/folders'
+import { uploadFile } from '@/lib/api/files'
 
 const FOLDERS_KEY = ['folders'] as const
 
@@ -47,4 +48,20 @@ export function useRemoveFileFromFolderMutation(folderId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['folders', folderId, 'files'] }),
   })
 }
+/** Upload a new file AND link it into the folder in one action (§14.6). */
+export function useUploadToFolderMutation(folderId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const created = await uploadFile(file)      // POST /files
+      await addFilesToFolder(folderId, [created.id]) // POST /folders/{id}/files
+      return created
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['folders', folderId, 'files'] })
+      qc.invalidateQueries({ queryKey: ['files'] })
+    },
+  })
+}
+
 export type { FolderView }

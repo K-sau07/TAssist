@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { AppLayout } from '@/features/dashboard/shell/AppLayout'
 import { FileGrid } from '@/features/files/FileGrid'
 import {
   useFolderFilesQuery, useFoldersQuery, useDeleteFolderMutation, useAddFilesToFolderMutation,
+  useUploadToFolderMutation,
 } from '@/lib/hooks/useFolders'
 import { useFilesQuery } from '@/lib/hooks/useFiles'
 import { Button } from '@/design/components/Button'
 import { fileSize } from '@/lib/format'
-import { Trash2, Plus, X, FileText, Check } from 'lucide-react'
+import { Trash2, Plus, X, FileText, Check, Upload } from 'lucide-react'
 
 export default function FolderPage() {
   const { folderId = '' } = useParams()
@@ -18,7 +19,17 @@ export default function FolderPage() {
   const { data: library = [] } = useFilesQuery()
   const del = useDeleteFolderMutation()
   const addFiles = useAddFilesToFolderMutation(folderId)
+  const uploadToFolder = useUploadToFolderMutation(folderId)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
   const folder = folders.find((f) => f.id === folderId)
+
+  async function handleUpload(files: FileList | null) {
+    if (!files) return
+    for (const f of Array.from(files)) {
+      try { await uploadToFolder.mutateAsync(f) } catch { /* surfaced via status pill / retry */ }
+    }
+    if (uploadInputRef.current) uploadInputRef.current.value = ''
+  }
 
   const [picking, setPicking] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -49,8 +60,11 @@ export default function FolderPage() {
             <h1 className="mt-1 text-3xl">{folder?.name ?? 'Folder'}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={() => setPicking(true)}>
-              <Plus size={16} strokeWidth={1.75} /> Add files
+            <Button onClick={() => uploadInputRef.current?.click()} disabled={uploadToFolder.isPending}>
+              <Upload size={16} strokeWidth={1.75} /> {uploadToFolder.isPending ? 'Uploading…' : 'Upload'}
+            </Button>
+            <Button variant="secondary" onClick={() => setPicking(true)}>
+              <Plus size={16} strokeWidth={1.75} /> Add from library
             </Button>
             <Button variant="secondary" onClick={() => navigate('/app/chats/new')}>Start chat in this folder</Button>
             <Button variant="ghost" onClick={() => {
@@ -66,15 +80,24 @@ export default function FolderPage() {
         ) : files.length === 0 ? (
           <div className="grid place-items-center rounded-lg border-2 border-dashed border-border-strong p-12 text-center">
             <p className="text-lg font-medium">This folder is empty</p>
-            <p className="mt-1 text-sm text-text-muted">Add files from your library to ask questions scoped to them.</p>
-            <Button className="mt-4" onClick={() => setPicking(true)}>
-              <Plus size={16} strokeWidth={1.75} /> Add files
-            </Button>
+            <p className="mt-1 text-sm text-text-muted">Upload a new file, or add one from your library.</p>
+            <div className="mt-4 flex gap-2">
+              <Button onClick={() => uploadInputRef.current?.click()} disabled={uploadToFolder.isPending}>
+                <Upload size={16} strokeWidth={1.75} /> {uploadToFolder.isPending ? 'Uploading…' : 'Upload'}
+              </Button>
+              <Button variant="secondary" onClick={() => setPicking(true)}>
+                <Plus size={16} strokeWidth={1.75} /> Add from library
+              </Button>
+            </div>
           </div>
         ) : (
           <FileGrid files={files} />
         )}
       </main>
+
+      <input ref={uploadInputRef} type="file" multiple hidden
+        accept=".pdf,.docx,.pptx,.txt,.md,.xlsx,.csv"
+        onChange={(e) => handleUpload(e.target.files)} />
 
       {picking && (
         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
