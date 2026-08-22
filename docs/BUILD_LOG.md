@@ -592,3 +592,28 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Notes:** bundle >500kB (framer-motion) — code-splitting deferred to Phase 2 (advisory only). Loading skeleton/toast polish is functional but minimal; richer toasts are a Phase 2 nicety.
 
 **Next:** Step 23 (testing + cleanup — final QA pass).
+
+
+#### Step 23 — DONE & VERIFIED (2026-08-21) — PROJECT COMPLETE 🎉
+
+**Scope:** Testing + cleanup — the final step. (1) fill missing unit tests, (2) README with real getting-started, (3) manual QA per §19.3 / §4 journeys.
+
+**Work done:**
+- **Tests:** Coverage audit found 4 application services without dedicated unit tests (ChannelService, ChannelChatService, FileService, QuotaService — all covered by live acceptance). Added `QuotaServiceTest` (7 tests: question limit allow/block, upload file-limit + storage-limit block, within-limits allow, record question/upload) as the highest-value pure-logic gap. Full suite now **208 tests, 0 failures, 1 skipped** (env-gated live gen test). ChannelService/ChannelChatService/FileService left to their live-acceptance coverage rather than heavy-fake unit tests (3+ repo deps each; brittle, low marginal value — honest call per our verify-what-matters discipline).
+- **README:** Full rewrite. The old README described a stale "TA/course/student" framing; replaced with the actual private-library + channels product, the real stack, and real getting-started (Docker up, .env creation + `set -a; . ../.env; set +a` sourcing, JAVA_HOME, backend `mvn spring-boot:run` on :8080, frontend `npm run dev` on :5173 with proxy, the VOYAGE_API_KEY-missing gotcha, dev commands, project layout, RAG pipeline overview). Real browser screenshots noted as not capturable in the build environment.
+- **Manual QA:** Full end-to-end walkthrough of all §4 journeys against a keyed backend (:8090), both accounts:
+  1. signup + /api/me ✓
+  2. upload → ingest → READY ✓
+  3. folder create + link file ✓
+  4. private folder chat — grounded answer citing the doc ("6pm" weekend hours) ✓
+  5. widgets — note autosave + todo create ✓
+  6. GET /api/quota ✓
+  7. channel create + attach file with display label "Hours & Rules" ✓
+  8. visitor (2nd account) discover → request → owner approve → APPROVED ✓
+  9. visitor channel chat — grounded answer, source shows display label NOT filename (§7.5) ✓
+
+**Final state:** Backend 208 tests / 0 failures. Frontend typecheck ✓ / lint ✓ (0 a11y) / build ✓. All §4 journeys pass end-to-end. Docker healthy, DB clean (1 real user).
+
+**Steps 0–23 COMPLETE. TAssist MVP is built, tested, and verified.**
+
+Phase 2 backlog (from spec §21 + polish notes): richer error toasts, drag-reorder todos, code-splitting (bundle >500kB), loading skeletons pass, file detail popover, @-mention picker autocomplete, channel analytics tab (D19), embedding-based topic clustering, refresh tokens, email verification, plan tiers.
