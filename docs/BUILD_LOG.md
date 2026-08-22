@@ -577,3 +577,18 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Verification:** typecheck + build green. Live (:8090): note GET auto-creates → PUT (autosave path) saves + persists; todo add → toggle done → delete (204) → empty. All widget API calls confirmed.
 
 **Next:** Step 22 (landing page + visual polish — Framer Motion + Lottie).
+
+
+#### Step 22 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Landing page + visual polish + a11y (§14.1, §15). Landing built; a11y warnings fixed. Loading skeletons / empty states / error surfacing were built inline across Steps 16–21 (file grid empty state, dashboard skeletons, auth error messages, channel access states, stream error banner), so this step focused on the landing page and the a11y acceptance.
+
+**Sub-commits:**
+- `3e6aa3a` **22.1** `LandingPage` — all 7 sections (sticky nav w/ logged-in state, hero with headline + sub + dual CTA, how-it-works 3 cards with spring hover, channel pitch, grounding-guarantee card, file-type strip, footer) + scroll-reveal (Framer `whileInView`, springLazy). `HeroAnimation` — custom SVG "file characters" floating with drifting speech bubbles (Pixar-emoji vibe per §15.6); reduced-motion aware (no infinite loop, no autoplay when prefers-reduced-motion). Chose custom SVG+Framer over an external .lottie asset — distinctive, dependency-free, honors the motion tokens.
+- `<this>` **22.2** Added `eslint.config.js` (flat config: js + typescript-eslint + react-hooks + jsx-a11y recommended). Fixed all 18 jsx-a11y errors: form labels demoted to spans where not wrapping controls; SnippetDrawer + UploadZone modal backdrops given role="dialog"/aria-modal/Escape handler; drop-zone converted from div-with-onClick to a real <button>; intentional overlay-dismiss patterns given targeted eslint-disable (Escape + close button provide keyboard access).
+
+**Verification:** typecheck clean, lint clean (0 a11y errors), production build green. Landing hero copy + grounding guarantee confirmed in the built bundle; both landing components transform via Vite with no errors. Every §4 core journey's API path was live-verified in Steps 16–21 (signup, upload→READY, folder chat with citations, channel create/attach/approve, visitor discover→request→approve→grounded answer, notes/todos).
+
+**Notes:** bundle >500kB (framer-motion) — code-splitting deferred to Phase 2 (advisory only). Loading skeleton/toast polish is functional but minimal; richer toasts are a Phase 2 nicety.
+
+**Next:** Step 23 (testing + cleanup — final QA pass).
