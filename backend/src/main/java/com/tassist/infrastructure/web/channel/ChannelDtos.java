@@ -44,11 +44,17 @@ public final class ChannelDtos {
 
     public record JoinRequest(String message) {}
 
-    public record MembershipView(String id, String userId, String status,
-                                 Optional<String> requestMessage, Instant createdAt) {
+    public record MembershipView(String id, String userId, String displayName, String email,
+                                 String status, Optional<String> requestMessage, Instant createdAt) {
+        /** Without user profile (userId only) — used where enrichment isn't needed. */
         public static MembershipView of(Membership m) {
             return new MembershipView(m.id().value().toString(), m.userId().value().toString(),
-                m.status().name(), m.requestMessage(), m.createdAt());
+                null, null, m.status().name(), m.requestMessage(), m.createdAt());
+        }
+        /** With member profile for owner-facing member lists (§14.10). */
+        public static MembershipView of(Membership m, String displayName, String email) {
+            return new MembershipView(m.id().value().toString(), m.userId().value().toString(),
+                displayName, email, m.status().name(), m.requestMessage(), m.createdAt());
         }
     }
 

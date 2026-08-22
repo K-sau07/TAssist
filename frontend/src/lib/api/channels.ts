@@ -10,8 +10,9 @@ export interface ChannelView {
 export interface ChannelPublicView { channel: ChannelView; myMembershipStatus: MembershipStatus | 'OWNER' | null }
 export interface ChannelFileView { fileId: string; displayLabel: string; addedAt: string }
 export interface MembershipView {
-  id: string; userId: string; status: MembershipStatus
-  requestMessage: string | null; createdAt: string
+  id: string; userId: string
+  displayName: string | null; email: string | null
+  status: MembershipStatus; requestMessage: string | null; createdAt: string
 }
 
 export interface CreateChannelInput {

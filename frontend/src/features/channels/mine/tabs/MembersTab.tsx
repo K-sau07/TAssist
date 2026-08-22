@@ -29,7 +29,8 @@ export function MembersTab({ channelId }: { channelId: string }) {
             {members.map((m) => (
               <div key={m.id} className="flex items-center justify-between rounded-md border border-border bg-bg-elev px-4 py-3">
                 <div className="min-w-0">
-                  <p className="font-mono text-sm">{m.userId.slice(0, 8)}…</p>
+                  <p className="text-sm font-medium">{m.displayName ?? 'Unknown user'}</p>
+                  {m.email && <p className="text-xs text-text-faint">{m.email}</p>}
                   {m.requestMessage && <p className="mt-0.5 truncate text-sm text-text-muted" title={m.requestMessage}>“{m.requestMessage}”</p>}
                   <p className="text-xs text-text-faint">Requested {timeAgo(m.createdAt)}</p>
                 </div>

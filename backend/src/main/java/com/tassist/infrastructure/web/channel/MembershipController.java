@@ -4,6 +4,8 @@ import com.tassist.domain.error.Unauthenticated;
 import com.tassist.domain.error.ValidationError;
 import com.tassist.domain.model.Membership;
 import com.tassist.domain.port.in.MembershipUseCase;
+import com.tassist.domain.port.out.UserRepository;
+import com.tassist.domain.model.User;
 import com.tassist.domain.vo.*;
 import com.tassist.infrastructure.web.channel.ChannelDtos.*;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +21,12 @@ import java.util.Optional;
 public class MembershipController {
 
     private final MembershipUseCase memberships;
+    private final UserRepository users;
 
-    public MembershipController(MembershipUseCase memberships) { this.memberships = memberships; }
+    public MembershipController(MembershipUseCase memberships, UserRepository users) {
+        this.memberships = memberships;
+        this.users = users;
+    }
 
     // ---- visitor side (§12.6) ----
 
@@ -47,7 +53,12 @@ public class MembershipController {
                                         Authentication auth) {
         UserId owner = principal(auth);
         return memberships.listByStatus(owner, channelId(channelId), ChannelDtos.parseStatus(status))
-            .stream().map(MembershipView::of).toList();
+            .stream().map(m -> {
+                Optional<User> u = users.findById(m.userId());
+                return MembershipView.of(m,
+                    u.map(User::displayName).orElse("Unknown user"),
+                    u.map(User::email).orElse(null));
+            }).toList();
     }
 
     @PostMapping("/members/{membershipId}/approve")
