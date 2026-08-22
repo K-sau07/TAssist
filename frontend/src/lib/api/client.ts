@@ -1,16 +1,20 @@
-// Base fetch wrapper: injects auth header, maps errors to a typed ApiError (spec §13).
+// Base fetch wrapper: injects auth header, maps errors to a typed ApiError (spec §13, §17.4).
 import { useAuthStore } from '@/lib/auth/store'
 
 export class ApiError extends Error {
   status: number
   code?: string
   retryAfterSeconds?: number
-  constructor(status: number, message: string, code?: string, retryAfterSeconds?: number) {
+  details?: Record<string, string>
+  constructor(status: number, message: string, opts?: {
+    code?: string; retryAfterSeconds?: number; details?: Record<string, string>
+  }) {
     super(message)
     this.name = 'ApiError'
     this.status = status
-    this.code = code
-    this.retryAfterSeconds = retryAfterSeconds
+    this.code = opts?.code
+    this.retryAfterSeconds = opts?.retryAfterSeconds
+    this.details = opts?.details
   }
 }
 
@@ -44,13 +48,19 @@ export async function apiFetch<T = unknown>(path: string, opts: Options = {}): P
     let code: string | undefined
     let message = `Request failed (${res.status})`
     let retryAfterSeconds: number | undefined
+    let details: Record<string, string> | undefined
     try {
       const data = await res.json()
-      code = data.code
-      message = data.message ?? message
-      retryAfterSeconds = data.retryAfterSeconds
+      // §17.4 envelope: { error: { code, message, details, correlationId } }
+      const err = data?.error ?? data
+      code = err?.code
+      message = err?.message ?? message
+      details = err?.details ?? undefined
+      // retryAfterSeconds lives inside details for RATE_LIMITED
+      const ra = details?.retryAfterSeconds ?? err?.retryAfterSeconds
+      if (ra != null) retryAfterSeconds = Number(ra)
     } catch { /* non-JSON error body */ }
-    throw new ApiError(res.status, message, code, retryAfterSeconds)
+    throw new ApiError(res.status, message, { code, retryAfterSeconds, details })
   }
 
   if (res.status === 204) return undefined as T

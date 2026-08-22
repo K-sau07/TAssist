@@ -13,7 +13,10 @@ import { useAuthStore } from '@/lib/auth/store'
 const schema = z.object({
   displayName: z.string().min(1, 'Display name is required').max(80),
   email: z.string().email('Enter a valid email'),
-  password: z.string().min(8, 'At least 8 characters'),
+  password: z.string()
+    .min(10, 'At least 10 characters')
+    .regex(/[A-Za-z]/, 'Must contain a letter')
+    .regex(/[0-9]/, 'Must contain a digit'),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -22,7 +25,7 @@ export default function SignupPage() {
   const [params] = useSearchParams()
   const setSession = useAuthStore((s) => s.setSession)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const { register, handleSubmit, formState: { errors, isSubmitting } } =
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } =
     useForm<FormValues>({ resolver: zodResolver(schema) })
 
   async function onSubmit(values: FormValues) {
@@ -32,6 +35,14 @@ export default function SignupPage() {
       setSession(res.token, res.user)
       navigate(params.get('next') || '/app', { replace: true })
     } catch (e) {
+      if (e instanceof ApiError && e.details) {
+        // §13.6 / §17.4: map server field errors onto the form
+        for (const [field, reason] of Object.entries(e.details)) {
+          if (field === 'displayName' || field === 'email' || field === 'password') {
+            setError(field, { message: reason })
+          }
+        }
+      }
       setSubmitError(e instanceof ApiError ? e.message : 'Something went wrong. Try again.')
     }
   }
