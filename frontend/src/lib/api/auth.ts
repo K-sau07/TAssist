@@ -28,5 +28,11 @@ export function logout() {
   return apiFetch<void>('/auth/logout', { method: 'POST' })
 }
 
-/** Google OAuth: backend redirects the browser to this URL, then back to /auth/complete?token=... */
-export const googleAuthUrl = '/api/auth/google'
+/** Current user (spec §12.1 GET /api/me). Used by OAuth-complete to hydrate the store. */
+export function me() {
+  return apiFetch<CurrentUser>('/me')
+}
+
+/** Google OAuth: navigating here hits the backend, which 302s to Google consent,
+ *  then back to /auth/complete?token=<JWT> (spec §12.1 / §14.4). */
+export const googleAuthorizeUrl = '/api/auth/google/authorize' 
