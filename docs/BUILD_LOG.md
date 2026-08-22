@@ -524,3 +524,17 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Env note:** the dev backend must be started with `.env` sourced (VOYAGE_API_KEY) or uploads fail at the embedding step with "VOYAGE_API_KEY not configured" — a runtime/env condition, correctly surfaced by the FAILED pill, not a code defect.
 
 **Next:** Step 18 (chat page + streaming client — the SSE renderer).
+
+
+#### Step 18 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Frontend chat page + streaming client (§13.4, §14.7). The live SSE renderer — payoff for the Step 11 streaming backend. Scoped to the acceptance path; @-mention picker autocomplete + regenerate/rename-inline deferred to frontend polish.
+
+**Sub-commits:**
+- `c99ef29` **18.1** SSE client `lib/sse/streamMessage.ts` (fetch + ReadableStream + SSE frame parser — EventSource can't send auth header, §13.4; handles keep-alive `:` pings, CONNECTION_LOST synthetic error, 401→clear) + `types.ts` (event payloads matching backend emit exactly) + `lib/api/chats.ts`.
+- `3f06010` **18.2** Renderer: `MessageContent` ([Sn]→clickable chips), `SourcesStrip`, `SnippetDrawer`, `FallbackPill`, `MessageList` (user/assistant bubbles, streaming bubble with pulsing cursor, auto-scroll), `useChatStream` (owns streaming state, optimistic user msg, invalidates ['chat',id] on done).
+- `<this>` **18.3** `Composer` (auto-grow textarea, Enter sends / Shift+Enter newline), `ChatPage` (loads history via useChatQuery, wires stream, snippet drawer, scope pill), `NewChatPage` (regular vs folder picker → createChat → navigate).
+
+**Verification:** typecheck + production build green. Live acceptance against a keyed backend (:8090): folder chat, asked "What is the refund window?" → the exact SSE sequence the frontend consumes: start(grounded) → sources(S1 + snippet) → token* → citation(num:1) → done(tokens). Answer grounded + cited: "refund window is 30 days… [S1]". Every event maps to a handler in useChatStream/MessageList; [Sn] markers render as chips → snippet drawer.
+
+**Next:** Step 19 (frontend channels — owner side).
