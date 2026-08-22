@@ -23,7 +23,8 @@ export async function streamMessage(
       body: JSON.stringify(body),
       signal,
     })
-  } catch {
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') return // user navigated away — not an error
     handlers.onError?.({ code: 'CONNECTION_LOST', message: 'Could not reach the server.' })
     return
   }
@@ -37,6 +38,17 @@ export async function streamMessage(
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  // Once the server signals completion (done/error), the exchange is over.
+  // Any subsequent connection-close exception is expected and must NOT be
+  // surfaced as an error — otherwise a perfectly good answer shows "connection dropped".
+  let finished = false
+
+  const dispatch = (frame: string) => {
+    const ev = parseEvent(frame)
+    if (!ev) return
+    if (ev.event === 'done' || ev.event === 'error') finished = true
+    handle(ev, handlers)
+  }
 
   try {
     while (true) {
@@ -44,20 +56,25 @@ export async function streamMessage(
       if (done) break
       buffer += decoder.decode(value, { stream: true })
 
-      // SSE frames separated by a blank line
       let sep: number
       while ((sep = buffer.indexOf('\n\n')) !== -1) {
         const frame = buffer.slice(0, sep)
         buffer = buffer.slice(sep + 2)
-        dispatchFrame(frame, handlers)
+        dispatch(frame)
       }
     }
-  } catch {
-    handlers.onError?.({ code: 'CONNECTION_LOST', message: 'The connection dropped.' })
+    // flush any trailing frame not terminated by a blank line
+    if (buffer.trim()) dispatch(buffer)
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') return // navigated away
+    // If the stream already completed, a close-time exception is expected — ignore it.
+    if (!finished) {
+      handlers.onError?.({ code: 'CONNECTION_LOST', message: 'The connection dropped.' })
+    }
   }
 }
 
-function dispatchFrame(frame: string, h: StreamHandlers) {
+function parseEvent(frame: string): { event: string; data: any } | null {
   let event = 'message'
   const dataLines: string[] = []
   for (const line of frame.split('\n')) {
@@ -65,10 +82,11 @@ function dispatchFrame(frame: string, h: StreamHandlers) {
     if (line.startsWith('event:')) event = line.slice(6).trim()
     else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
   }
-  if (dataLines.length === 0) return
-  let data: any
-  try { data = JSON.parse(dataLines.join('\n')) } catch { return }
+  if (dataLines.length === 0) return null
+  try { return { event, data: JSON.parse(dataLines.join('\n')) } } catch { return null }
+}
 
+function handle({ event, data }: { event: string; data: any }, h: StreamHandlers) {
   switch (event) {
     case 'start': h.onStart?.(data); break
     case 'sources': h.onSources?.(data); break
