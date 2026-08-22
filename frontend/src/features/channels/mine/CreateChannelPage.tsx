@@ -61,12 +61,12 @@ export default function CreateChannelPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5" noValidate>
           <div>
-            <label className="mb-1 block text-sm font-medium">Display name</label>
+            <span className="mb-1 block text-sm font-medium">Display name</span>
             <Input placeholder="CS101 Help Desk" {...register('displayName')} />
             {errors.displayName && <p className="mt-1 text-xs text-danger">{errors.displayName.message}</p>}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Username</label>
+            <span className="mb-1 block text-sm font-medium">Username</span>
             <div className="flex items-center gap-2">
               <span className="text-text-faint">@</span>
               <Input placeholder="cs101" {...register('username')} onBlur={checkUsername} />
@@ -77,17 +77,17 @@ export default function CreateChannelPage() {
             {nameStatus === 'free' && <p className="mt-1 text-xs text-success">Available!</p>}
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Description</label>
+            <span className="mb-1 block text-sm font-medium">Description</span>
             <textarea rows={2} className="w-full rounded-md border border-border bg-bg-elev px-3 py-2 text-md outline-none focus:border-primary"
               placeholder="What this channel is about" {...register('description')} />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">What to expect</label>
+            <span className="mb-1 block text-sm font-medium">What to expect</span>
             <textarea rows={2} className="w-full rounded-md border border-border bg-bg-elev px-3 py-2 text-md outline-none focus:border-primary"
               placeholder="Set expectations for people asking questions" {...register('expectationSummary')} />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Visibility</label>
+            <span className="mb-1 block text-sm font-medium">Visibility</span>
             <select className="w-full rounded-md border border-border bg-bg-elev px-3 py-2 text-md outline-none focus:border-primary" {...register('visibility')}>
               <option value="PUBLIC">Public — listed in Discover</option>
               <option value="UNLISTED">Unlisted — link only</option>

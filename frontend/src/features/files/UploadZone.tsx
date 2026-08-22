@@ -32,24 +32,29 @@ export function UploadZone() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-md rounded-lg border border-border bg-bg-elev p-6 shadow-2" onClick={(e) => e.stopPropagation()}>
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/30 p-4"
+             role="dialog" aria-modal="true" aria-label="Upload files"
+             onClick={() => setOpen(false)} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }} tabIndex={-1}>
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
+          <div className="w-full max-w-md rounded-lg border border-border bg-bg-elev p-6 shadow-2" role="document" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-medium">Upload files</h2>
               <button onClick={() => setOpen(false)} className="text-text-faint hover:text-text"><X size={18} /></button>
             </div>
-            <div
+            <button
+              type="button"
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
               onClick={() => inputRef.current?.click()}
-              className={cn('grid cursor-pointer place-items-center gap-2 rounded-md border-2 border-dashed p-10 text-center transition-colors',
+              className={cn('grid w-full cursor-pointer place-items-center gap-2 rounded-md border-2 border-dashed p-10 text-center transition-colors',
                 dragOver ? 'border-primary bg-primary/5' : 'border-border-strong hover:border-primary')}
             >
               <Upload size={28} strokeWidth={1.5} className="text-text-faint" />
               <p className="text-sm text-text-muted">Drop files here or click to browse</p>
               <p className="text-xs text-text-faint">PDF, DOCX, PPTX, TXT, MD, XLSX, CSV</p>
-            </div>
+            </button>
             <input ref={inputRef} type="file" multiple hidden
               accept=".pdf,.docx,.pptx,.txt,.md,.xlsx,.csv"
               onChange={(e) => handleFiles(e.target.files)} />

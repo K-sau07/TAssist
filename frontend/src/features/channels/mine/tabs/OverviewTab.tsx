@@ -33,16 +33,16 @@ export function OverviewTab({ channel }: { channel: ChannelView }) {
   return (
     <div className="max-w-xl space-y-5">
       <div>
-        <label className="mb-1 block text-sm font-medium">Display name</label>
+        <span className="mb-1 block text-sm font-medium">Display name</span>
         <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Description</label>
+        <span className="mb-1 block text-sm font-medium">Description</span>
         <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)}
           className="w-full rounded-md border border-border bg-bg-elev px-3 py-2 text-md outline-none focus:border-primary" />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">What to expect</label>
+        <span className="mb-1 block text-sm font-medium">What to expect</span>
         <textarea rows={2} value={expectationSummary} onChange={(e) => setExpectationSummary(e.target.value)}
           className="w-full rounded-md border border-border bg-bg-elev px-3 py-2 text-md outline-none focus:border-primary" />
       </div>
