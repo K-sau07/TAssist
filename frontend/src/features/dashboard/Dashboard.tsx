@@ -2,6 +2,8 @@ import { AppLayout } from './shell/AppLayout'
 import { FileGrid } from '@/features/files/FileGrid'
 import { UploadZone } from '@/features/files/UploadZone'
 import { useFilesQuery } from '@/lib/hooks/useFiles'
+import { NotesCard } from '@/features/widgets/NotesCard'
+import { TodosCard } from '@/features/widgets/TodosCard'
 import { useAuthStore } from '@/lib/auth/store'
 
 function greeting() {
@@ -20,6 +22,11 @@ export default function Dashboard() {
           <h1 className="text-3xl">{greeting()}{user ? `, ${user.displayName}` : ''}</h1>
           <p className="mt-1 text-text-muted">Your files. One brain. Zero uploads to Claude.</p>
         </header>
+
+        <section className="mb-8 grid gap-4 md:grid-cols-2">
+          <NotesCard />
+          <TodosCard />
+        </section>
 
         <section>
           <h2 className="mb-4 text-xl">Files</h2>
