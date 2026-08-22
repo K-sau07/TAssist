@@ -508,3 +508,19 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Verification:** typecheck clean; production build green. Live: signup POST through the Vite proxy (:5173/api → backend :8080 — the exact path the browser uses) created the user and returned token(283) + user; all three auth pages transform via Vite with zero errors. Acceptance met: browser signup → token+user in useAuthStore → redirect to /app (guard now admits).
 
 **Next:** Step 17 (dashboard shell + files + folders).
+
+
+#### Step 17 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Frontend dashboard shell + files + folders (§14.5–14.6). First real authenticated app screen. Scoped to the acceptance-critical path; polish (drag-drop full-page overlay, file detail popover, multi-select toolbar, fuzzy search, recents/widgets on dashboard) deferred to later frontend polish.
+
+**Sub-commits:**
+- `bd0898f` **17.1** `lib/api/files.ts` + `folders.ts` + TanStack Query hooks (`useFiles`, `useFolders`): list/upload/delete files, folder CRUD + file membership. Matches backend FileView/StatusView/FolderView shapes.
+- `4a22827` **17.2–17.3** App shell (`LeftRail` — logo, New chat, Library/folders list + New folder, Channels, Discover, Settings, Log out; `AppLayout` wrapper). Files: `StatusPill` (per-status color + pulse while in-progress), `useFileStatusPoll` (polls /files/{id}/status every 1.5s until READY/FAILED, writes back into the files list cache), `FileCard`, `UploadZone` (FAB + drop-zone modal + drag-drop), `FileGrid` (+ empty "Drop your first file" state).
+- `<this>` **17.4** Real `Dashboard` (greeting, files section with grid + skeleton loading, UploadZone) and `FolderPage` (header, folder-scoped file grid, start-chat-in-folder, delete folder).
+
+**Verification:** typecheck clean; production build green (1687 modules). Live acceptance through the Vite proxy: signup → upload file → poll /status. Confirmed BOTH branches — FAILED path renders the failure reason correctly (first run, backend missing VOYAGE_API_KEY), and the happy path reaches READY (re-run against a properly-keyed backend on :8090). Files list renders in the grid. Acceptance met: upload in browser → file appears → status pill reflects live status.
+
+**Env note:** the dev backend must be started with `.env` sourced (VOYAGE_API_KEY) or uploads fail at the embedding step with "VOYAGE_API_KEY not configured" — a runtime/env condition, correctly surfaced by the FAILED pill, not a code defect.
+
+**Next:** Step 18 (chat page + streaming client — the SSE renderer).
