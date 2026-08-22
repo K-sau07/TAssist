@@ -491,3 +491,20 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Notes:** shadcn deferred per D9 — using lightweight themed primitives (Button) driven by the token system rather than the full shadcn install; more primitives added as features need them. No new tokens invented (§20 rule).
 
 **Next:** Step 16 (frontend auth flow — login/signup/OAuth pages).
+
+
+#### Step 16 — DONE & VERIFIED (2026-08-21)
+
+**Scope:** Frontend auth flow (§14.2–14.4) — signup, login, OAuth-complete pages functional against the live backend.
+
+**Files:**
+- `lib/api/auth.ts` — added `me()` (GET /api/me) + `googleAuthorizeUrl` (/api/auth/google/authorize).
+- `design/components/Input.tsx` — themed input primitive (focus ring, tokens).
+- `features/auth/AuthCard.tsx` — centered 420px card shell (§14.2) + Google button + FieldError.
+- `features/auth/SignupPage.tsx` — RHF + Zod (displayName/email/password); on 201 → setSession → navigate(next||/app); ApiError surfaced.
+- `features/auth/LoginPage.tsx` — RHF + Zod (email/password); 401 → "Incorrect email or password"; honors ?next=; shows ?error=oauth_failed banner.
+- `features/auth/OAuthCompletePage.tsx` — reads ?token → setToken → me() → setSession → history.replaceState strips token → navigate /app; failure → /login?error=oauth_failed; StrictMode-guarded; full-page spinner.
+
+**Verification:** typecheck clean; production build green. Live: signup POST through the Vite proxy (:5173/api → backend :8080 — the exact path the browser uses) created the user and returned token(283) + user; all three auth pages transform via Vite with zero errors. Acceptance met: browser signup → token+user in useAuthStore → redirect to /app (guard now admits).
+
+**Next:** Step 17 (dashboard shell + files + folders).
