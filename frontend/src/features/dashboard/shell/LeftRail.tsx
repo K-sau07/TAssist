@@ -1,9 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { FilePlus2, FolderPlus, Compass, Settings, LogOut, Hash, Library } from 'lucide-react'
+import { FilePlus2, FolderPlus, Compass, Settings, LogOut, Hash, Library, Sun, Moon } from 'lucide-react'
 import { Button } from '@/design/components/Button'
 import { useFoldersQuery, useCreateFolderMutation } from '@/lib/hooks/useFolders'
 import { useJoinedChannelsQuery } from '@/lib/hooks/useChannels'
 import { useAuthStore } from '@/lib/auth/store'
+import { useThemeStore } from '@/lib/theme/store'
 import { cn } from '@/lib/cn'
 
 export function LeftRail() {
@@ -12,6 +13,8 @@ export function LeftRail() {
   const createFolder = useCreateFolderMutation()
   const { data: joined = [] } = useJoinedChannelsQuery()
   const clear = useAuthStore((s) => s.clear)
+  const theme = useThemeStore((s) => s.theme)
+  const toggleTheme = useThemeStore((s) => s.toggle)
 
   function newFolder() {
     const name = window.prompt('Folder name')?.trim()
@@ -68,6 +71,12 @@ export function LeftRail() {
       </nav>
 
       <div className="border-t border-border pt-2">
+        <button onClick={toggleTheme}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-text-muted hover:bg-bg-sunken">
+          {theme === 'dark'
+            ? <><Sun size={16} strokeWidth={1.75} /> Light mode</>
+            : <><Moon size={16} strokeWidth={1.75} /> Dark mode</>}
+        </button>
         <NavLink to="/app/settings" className={linkCls}><Settings size={16} strokeWidth={1.75} /> Settings</NavLink>
         <button onClick={logout} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-text-muted hover:bg-bg-sunken">
           <LogOut size={16} strokeWidth={1.75} /> Log out

@@ -16,7 +16,7 @@ export function HeroAnimation() {
   return (
     <svg viewBox="0 0 420 380" className="h-full w-full" role="img" aria-label="Illustration of documents answering questions">
       {/* soft ground shadow */}
-      <ellipse cx="210" cy="340" rx="120" ry="16" fill="#1E1B2E" opacity="0.06" />
+      <ellipse cx="210" cy="340" rx="120" ry="16" fill="var(--tassist-text)" opacity="0.06" />
 
       {/* back file */}
       <motion.g {...float(0.4, 8)}>
@@ -28,7 +28,7 @@ export function HeroAnimation() {
       </motion.g>
       {/* right file */}
       <motion.g {...float(0.8, 10)}>
-        <FileChar x={250} y={155} fill="#FFFFFF" tilt={7} />
+        <FileChar x={250} y={155} fill="var(--tassist-bg-elev)" tilt={7} />
       </motion.g>
 
       {/* speech bubbles drifting up */}
@@ -38,9 +38,9 @@ export function HeroAnimation() {
           animate={{ opacity: [0, 1, 0], y: [-0, -70] }}
           transition={{ duration: 3.5, repeat: Infinity, delay: i * 1.2, ease: 'easeOut' }}
         >
-          <circle cx={200 + i * 34} cy={140 - i * 8} r={12 + i * 2} fill="#3E2A93" opacity="0.9" />
-          <circle cx={200 + i * 34} cy={140 - i * 8} r={3} fill="#FDFAF4" />
-          <circle cx={208 + i * 34} cy={140 - i * 8} r={3} fill="#FDFAF4" />
+          <circle cx={200 + i * 34} cy={140 - i * 8} r={12 + i * 2} fill="var(--tassist-primary)" opacity="0.9" />
+          <circle cx={200 + i * 34} cy={140 - i * 8} r={3} fill="var(--tassist-primary-fg)" />
+          <circle cx={208 + i * 34} cy={140 - i * 8} r={3} fill="var(--tassist-primary-fg)" />
         </motion.g>
       ))}
     </svg>
@@ -50,8 +50,8 @@ export function HeroAnimation() {
 function FileChar({ x, y, fill, tilt, face }: { x: number; y: number; fill: string; tilt: number; face?: boolean }) {
   return (
     <g transform={`translate(${x} ${y}) rotate(${tilt})`}>
-      <rect width="90" height="112" rx="16" fill={fill} stroke="#1E1B2E" strokeOpacity="0.08" />
-      <rect x="16" y="24" width="58" height="7" rx="3.5" fill="#1E1B2E" opacity="0.12" />
+      <rect width="90" height="112" rx="16" fill={fill} stroke="var(--tassist-text)" strokeOpacity="0.08" />
+      <rect x="16" y="24" width="58" height="7" rx="3.5" fill="#1E1B2E" opacity="0.15" />
       <rect x="16" y="40" width="44" height="7" rx="3.5" fill="#1E1B2E" opacity="0.12" />
       <rect x="16" y="56" width="52" height="7" rx="3.5" fill="#1E1B2E" opacity="0.12" />
       {face && (
