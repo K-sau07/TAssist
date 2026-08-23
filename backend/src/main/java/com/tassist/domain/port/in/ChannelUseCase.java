@@ -20,6 +20,9 @@ public interface ChannelUseCase {
 
     List<Channel> listOwned(UserId actingUser);
 
+    /** Channels the user is an APPROVED member of (not owned). */
+    List<Channel> listJoined(UserId actingUser);
+
     Channel getByUsername(String username);
 
     Channel edit(UserId actingUser, ChannelId channelId, EditChannelCommand command);

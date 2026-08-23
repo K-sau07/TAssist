@@ -1,13 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createChannel,
-  listMyChannels, listChannelFiles, listMembers, attachChannelFile, detachChannelFile,
+  listMyChannels, listJoinedChannels, listChannelFiles, listMembers, attachChannelFile, detachChannelFile,
   approveMember, denyMember, kickMember, banMember,
   type MembershipStatus, type CreateChannelInput,
 } from '@/lib/api/channels'
 
 export function useMyChannelsQuery() {
   return useQuery({ queryKey: ['channels', 'mine'], queryFn: listMyChannels })
+}
+export function useJoinedChannelsQuery() {
+  return useQuery({ queryKey: ['channels', 'joined'], queryFn: listJoinedChannels })
 }
 export function useChannelFilesQuery(channelId: string) {
   return useQuery({ queryKey: ['channel', channelId, 'files'], queryFn: () => listChannelFiles(channelId) })

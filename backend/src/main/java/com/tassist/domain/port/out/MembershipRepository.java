@@ -15,4 +15,5 @@ public interface MembershipRepository {
     Optional<Membership> findByChannelAndUser(ChannelId channelId, UserId userId);
     List<Membership> findByChannelAndStatus(ChannelId channelId, MembershipStatus status);
     List<Membership> findByChannel(ChannelId channelId);
+    List<Membership> findByUserAndStatus(UserId userId, MembershipStatus status);
 }

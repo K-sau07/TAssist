@@ -9,6 +9,9 @@ import com.tassist.domain.model.ChannelFile;
 import com.tassist.domain.port.in.ChannelUseCase;
 import com.tassist.domain.port.out.ChannelFileRepository;
 import com.tassist.domain.port.out.ChannelRepository;
+import com.tassist.domain.port.out.MembershipRepository;
+import com.tassist.domain.model.Membership;
+import com.tassist.domain.vo.MembershipStatus;
 import com.tassist.domain.port.out.FileRepository;
 import com.tassist.domain.vo.*;
 import org.slf4j.Logger;
@@ -29,11 +32,13 @@ public class ChannelService implements ChannelUseCase {
     private final ChannelRepository channels;
     private final ChannelFileRepository channelFiles;
     private final FileRepository files;
+    private final MembershipRepository memberships;
 
-    public ChannelService(ChannelRepository channels, ChannelFileRepository channelFiles, FileRepository files) {
+    public ChannelService(ChannelRepository channels, ChannelFileRepository channelFiles, FileRepository files, MembershipRepository memberships) {
         this.channels = channels;
         this.channelFiles = channelFiles;
         this.files = files;
+        this.memberships = memberships;
     }
 
     @Override
@@ -54,6 +59,15 @@ public class ChannelService implements ChannelUseCase {
     @Override
     public List<Channel> listOwned(UserId actingUser) {
         return channels.findByOwner(actingUser);
+    }
+
+    @Override
+    public List<Channel> listJoined(UserId actingUser) {
+        return memberships.findByUserAndStatus(actingUser, MembershipStatus.APPROVED).stream()
+            .map(Membership::channelId)
+            .map(channels::findById)
+            .filter(java.util.Optional::isPresent).map(java.util.Optional::get)
+            .toList();
     }
 
     @Override

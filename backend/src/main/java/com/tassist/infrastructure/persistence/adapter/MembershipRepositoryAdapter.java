@@ -23,4 +23,5 @@ public class MembershipRepositoryAdapter implements MembershipRepository {
     @Override public Optional<Membership> findByChannelAndUser(ChannelId c, UserId u) { return jpa.findByChannelIdAndUserId(c.value(), u.value()).map(MembershipMapper::toDomain); }
     @Override public List<Membership> findByChannelAndStatus(ChannelId c, MembershipStatus s) { return jpa.findByChannelIdAndStatus(c.value(), MembershipEntity.StatusDb.valueOf(s.name())).stream().map(MembershipMapper::toDomain).toList(); }
     @Override public List<Membership> findByChannel(ChannelId c) { return jpa.findByChannelId(c.value()).stream().map(MembershipMapper::toDomain).toList(); }
+    @Override public List<Membership> findByUserAndStatus(UserId u, MembershipStatus s) { return jpa.findByUserIdAndStatus(u.value(), MembershipEntity.StatusDb.valueOf(s.name())).stream().map(MembershipMapper::toDomain).toList(); }
 }

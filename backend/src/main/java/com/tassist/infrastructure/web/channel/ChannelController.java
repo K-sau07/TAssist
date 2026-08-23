@@ -50,6 +50,11 @@ public class ChannelController {
         return channels.listOwned(principal(auth)).stream().map(ChannelView::of).toList();
     }
 
+    @GetMapping("/joined")
+    public List<ChannelView> joined(Authentication auth) {
+        return channels.listJoined(principal(auth)).stream().map(ChannelView::of).toList();
+    }
+
     @GetMapping("/@{username}")
     public ChannelPublicView publicView(@PathVariable String username, Authentication auth) {
         UserId user = principal(auth);

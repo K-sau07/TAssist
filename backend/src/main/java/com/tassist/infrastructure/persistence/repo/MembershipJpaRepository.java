@@ -10,4 +10,5 @@ public interface MembershipJpaRepository extends JpaRepository<MembershipEntity,
     Optional<MembershipEntity> findByChannelIdAndUserId(UUID channelId, UUID userId);
     List<MembershipEntity> findByChannelIdAndStatus(UUID channelId, MembershipEntity.StatusDb status);
     List<MembershipEntity> findByChannelId(UUID channelId);
+    List<MembershipEntity> findByUserIdAndStatus(UUID userId, MembershipEntity.StatusDb status);
 }

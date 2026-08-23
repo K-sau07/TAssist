@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { FilePlus2, FolderPlus, Compass, Settings, LogOut, Hash, Library } from 'lucide-react'
 import { Button } from '@/design/components/Button'
 import { useFoldersQuery, useCreateFolderMutation } from '@/lib/hooks/useFolders'
+import { useJoinedChannelsQuery } from '@/lib/hooks/useChannels'
 import { useAuthStore } from '@/lib/auth/store'
 import { cn } from '@/lib/cn'
 
@@ -9,6 +10,7 @@ export function LeftRail() {
   const navigate = useNavigate()
   const { data: folders = [] } = useFoldersQuery()
   const createFolder = useCreateFolderMutation()
+  const { data: joined = [] } = useJoinedChannelsQuery()
   const clear = useAuthStore((s) => s.clear)
 
   function newFolder() {
@@ -52,6 +54,17 @@ export function LeftRail() {
         <div className="mb-1 px-3 text-xs uppercase tracking-wider text-text-faint">Channels</div>
         <NavLink to="/app/channels" className={linkCls}><Hash size={16} strokeWidth={1.75} /> My channels</NavLink>
         <NavLink to="/app/discover" className={linkCls}><Compass size={16} strokeWidth={1.75} /> Discover</NavLink>
+
+        {joined.length > 0 && (
+          <div className="mt-4">
+            <div className="mb-1 px-3 text-xs uppercase tracking-wider text-text-faint">Joined</div>
+            {joined.map((c) => (
+              <NavLink key={c.id} to={`/c/@${c.username}`} className={linkCls} title={c.displayName}>
+                <Hash size={16} strokeWidth={1.75} /> <span className="truncate">{c.displayName}</span>
+              </NavLink>
+            ))}
+          </div>
+        )}
       </nav>
 
       <div className="border-t border-border pt-2">

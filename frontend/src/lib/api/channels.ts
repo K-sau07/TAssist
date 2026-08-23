@@ -22,6 +22,7 @@ export interface CreateChannelInput {
 
 // --- channel CRUD ---
 export function listMyChannels() { return apiFetch<ChannelView[]>('/channels/mine') }
+export function listJoinedChannels() { return apiFetch<ChannelView[]>('/channels/joined') }
 export function getChannelByUsername(username: string) {
   return apiFetch<ChannelPublicView>(`/channels/@${username}`)
 }
