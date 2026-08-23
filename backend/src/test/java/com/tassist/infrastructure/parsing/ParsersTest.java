@@ -61,7 +61,8 @@ class ParsersTest {
             doc.save(out);
             bytes = out.toByteArray();
         }
-        List<ParsedSegment> segs = new PdfParser().parse(bytes);
+        var ocr = new com.tassist.infrastructure.parsing.OcrService(false, "", "eng", "");
+        List<ParsedSegment> segs = new PdfParser(ocr, 200, 80).parse(bytes);
         assertThat(segs).isNotEmpty();
         assertThat(segs.get(0).text()).contains("Hello PDF content");
         assertThat(segs.get(0).metadata()).containsEntry("page", "1");

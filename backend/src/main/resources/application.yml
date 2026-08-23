@@ -56,3 +56,14 @@ management:
     web:
       exposure:
         include: health, prometheus
+
+# OCR (Tesseract) for image-based PDF content. Enabled by default; degrades gracefully
+# to text-only if the native engine or tessdata is unavailable.
+tassist:
+  ocr:
+    enabled: ${TASSIST_OCR_ENABLED:true}
+    tessdata-path: ${TASSIST_TESSDATA:/opt/homebrew/share/tessdata}
+    native-lib-path: ${TASSIST_TESS_LIB:/opt/homebrew/lib}
+    language: ${TASSIST_OCR_LANG:eng}
+    dpi: ${TASSIST_OCR_DPI:200}
+    min-text-chars: ${TASSIST_OCR_MIN_TEXT:80}
