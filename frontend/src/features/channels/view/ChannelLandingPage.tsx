@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppLayout } from '@/features/dashboard/shell/AppLayout'
 import { Button } from '@/design/components/Button'
 import { useChannelPublicQuery, useRequestJoinMutation } from '@/lib/hooks/useDiscover'
-import { listChannelChats, createChannelChat } from '@/lib/api/channelChat'
-import { Hash } from 'lucide-react'
+import { listChannelChats, deleteChannelChat } from '@/lib/api/channelChat'
+import { Hash, Plus, Trash2 } from 'lucide-react'
 
 export default function ChannelLandingPage() {
   const { handle = '' } = useParams()
@@ -24,10 +24,15 @@ export default function ChannelLandingPage() {
     enabled: Boolean(channel?.id) && status === 'APPROVED',
   })
 
-  async function openNewChat() {
-    if (!channel) return
-    const chat = await createChannelChat(channel.id)
-    navigate(`/c/@${username}/chats/${chat.id}`)
+  const qc = useQueryClient()
+  const delChat = useMutation({
+    mutationFn: (chatId: string) => deleteChannelChat(channel!.id, chatId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['channel', channel?.id, 'my-chats'] }),
+  })
+
+  // Deferred creation: don't create a chat until the first message is sent (no blank chats).
+  function openNewChat() {
+    navigate(`/c/@${username}/chats/new`)
   }
 
   if (isLoading) return <AppLayout><main className="p-8 text-text-muted">Loading…</main></AppLayout>
@@ -67,16 +72,24 @@ export default function ChannelLandingPage() {
           )}
           {status === 'APPROVED' && (
             <div>
-              <Button onClick={openNewChat}>Open chat</Button>
+              <Button onClick={openNewChat}><Plus size={16} strokeWidth={1.75} /> New chat</Button>
               {myChats.length > 0 && (
                 <div className="mt-4">
                   <p className="mb-2 text-sm text-text-muted">Your chats in this channel</p>
                   <div className="space-y-2">
                     {myChats.map((c) => (
-                      <button key={c.id} onClick={() => navigate(`/c/@${username}/chats/${c.id}`)}
-                        className="block w-full rounded-md border border-border bg-bg-elev px-4 py-2 text-left text-sm hover:border-primary">
-                        {c.title}
-                      </button>
+                      <div key={c.id} className="group flex items-center gap-2 rounded-md border border-border bg-bg-elev px-4 py-2 hover:border-primary">
+                        <button onClick={() => navigate(`/c/@${username}/chats/${c.id}`)}
+                          className="flex-1 truncate text-left text-sm">
+                          {c.title}
+                        </button>
+                        <button
+                          onClick={() => { if (confirm('Delete this chat?')) delChat.mutate(c.id) }}
+                          className="text-text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
+                          title="Delete chat">
+                          <Trash2 size={15} strokeWidth={1.75} />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>

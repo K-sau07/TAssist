@@ -86,4 +86,12 @@ public class ChannelChatService {
         getOwnedInChannel(user, channelId, chatId);
         return messages.findByChat(chatId);
     }
+
+    @Transactional
+    public void delete(UserId user, ChannelId channelId, ChatId chatId) {
+        getOwnedInChannel(user, channelId, chatId); // access + ownership + belongs-to-channel
+        messages.deleteByChat(chatId);
+        chats.delete(chatId);
+        log.info("Channel chat deleted: {} channel={} member={}", chatId.value(), channelId.value(), user.value());
+    }
 }

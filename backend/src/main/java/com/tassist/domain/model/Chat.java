@@ -61,4 +61,9 @@ public record Chat(
             }
         }
     }
+
+    /** Returns a copy with a new title and bumped updatedAt. */
+    public Chat withTitle(String newTitle) {
+        return new Chat(id, ownerId, scope, folderId, channelId, newTitle, createdAt, java.time.Instant.now());
+    }
 }

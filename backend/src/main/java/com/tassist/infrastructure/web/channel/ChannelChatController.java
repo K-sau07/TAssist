@@ -66,6 +66,14 @@ public class ChannelChatController {
         return new ChatWithMessages(ChatSummary.of(c), msgs);
     }
 
+    @DeleteMapping("/{chatId}")
+    public ResponseEntity<Void> delete(@PathVariable String channelId, @PathVariable String chatId,
+                                       Authentication auth) {
+        channelChats.delete(principal(auth), new ChannelId(java.util.UUID.fromString(channelId)),
+            new ChatId(java.util.UUID.fromString(chatId)));
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{chatId}/messages/stream")
     public SseEmitter stream(@PathVariable String channelId, @PathVariable String chatId,
                              @RequestBody SendMessageRequest req, Authentication auth) {

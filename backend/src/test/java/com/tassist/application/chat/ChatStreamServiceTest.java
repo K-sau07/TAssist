@@ -101,7 +101,8 @@ class ChatStreamServiceTest {
         return new ChatStreamService(chats, messages, new FakeMentions(), retrieval, gen, llm, files, quota,
             new PromptBuilder(), new com.tassist.application.spreadsheet.SpreadsheetQueryService(null),
             new FakeChannelFiles(),
-            new com.tassist.application.quota.QuotaService(quota, 50, 524288000L, 500, 1000000L));
+            new com.tassist.application.quota.QuotaService(quota, 50, 524288000L, 500, 1000000L),
+            new com.tassist.application.chat.ChatTitleService(llm));
     }
 
     private final UserId user = UserId.newId();

@@ -56,13 +56,15 @@ public class ChatStreamService {
     private final PromptBuilder prompts;
     private final SpreadsheetQueryService sheetQuery;
     private final ChannelFileRepository channelFiles;
+    private final ChatTitleService titleService;
     private final QuotaUseCase quota;
 
     public ChatStreamService(ChatRepository chats, MessageRepository messages, MentionResolver mentions,
                              RetrievalUseCase retrieval, GenerationService generation, LLMClient llm,
                              FileRepository files, QuotaUsageRepository quotas,
                              PromptBuilder prompts, SpreadsheetQueryService sheetQuery,
-                             ChannelFileRepository channelFiles, QuotaUseCase quota) {
+                             ChannelFileRepository channelFiles, QuotaUseCase quota,
+                             ChatTitleService titleService) {
         this.chats = chats;
         this.messages = messages;
         this.mentions = mentions;
@@ -74,6 +76,7 @@ public class ChatStreamService {
         this.prompts = prompts;
         this.sheetQuery = sheetQuery;
         this.channelFiles = channelFiles;
+        this.titleService = titleService;
         this.quota = quota;
     }
 
@@ -90,6 +93,10 @@ public class ChatStreamService {
             List<FileId> mentionedFiles = mentionResult.fileIds();
             messages.save(new Message(MessageId.newId(), chatId, MessageRole.USER,
                 content, List.of(), mentionedFiles, Instant.now()));
+
+            // Auto-title on the first message (title still the default). Runs in the background so
+            // it never delays the streamed answer; failures fall back to a truncation internally.
+            maybeAutoTitle(chat, content);
 
             // 2. Scope selection (mentions override chat scope).
             Scope scope;
@@ -309,5 +316,24 @@ public class ChatStreamService {
         Chat chat = chats.findById(chatId).orElseThrow(() -> new NotFoundError("chat not found"));
         if (!chat.ownerId().equals(actingUser)) throw new Forbidden("not your chat");
         return chat;
+    }
+
+    private static final java.util.Set<String> DEFAULT_TITLES = java.util.Set.of("New chat");
+
+    private void maybeAutoTitle(Chat chat, String firstMessage) {
+        if (!DEFAULT_TITLES.contains(chat.title())) return; // already titled
+        // count existing messages cheaply: only title when this is effectively the first user turn
+        long priorCount = messages.findByChat(chat.id()).size();
+        if (priorCount > 1) return; // >1 because we just saved the USER message
+        Thread.ofVirtual().start(() -> {
+            try {
+                String title = titleService.titleFor(firstMessage);
+                chats.findById(chat.id()).ifPresent(fresh -> {
+                    if (DEFAULT_TITLES.contains(fresh.title())) chats.save(fresh.withTitle(title));
+                });
+            } catch (Exception e) {
+                log.warn("auto-title failed for chat {}: {}", chat.id().value(), e.getMessage());
+            }
+        });
     }
 }

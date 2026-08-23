@@ -10,6 +10,9 @@ export function listChannelChats(channelId: string) {
 export function createChannelChat(channelId: string) {
   return apiFetch<ChannelChatSummary>(`/channels/${channelId}/chats`, { method: 'POST' })
 }
+export function deleteChannelChat(channelId: string, chatId: string) {
+  return apiFetch<void>(`/channels/${channelId}/chats/${chatId}`, { method: 'DELETE' })
+}
 export function getChannelChat(channelId: string, chatId: string) {
   return apiFetch<ChannelChatWithMessages>(`/channels/${channelId}/chats/${chatId}`)
 }

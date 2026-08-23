@@ -27,6 +27,9 @@ class MembershipServiceTest {
         public List<Membership> findByChannelAndStatus(ChannelId c, MembershipStatus s){
             return byId.values().stream().filter(m->m.channelId().equals(c)&&m.status()==s).toList();
         }
+        public List<Membership> findByUserAndStatus(UserId u, MembershipStatus s){
+            return byId.values().stream().filter(m->m.userId().equals(u)&&m.status()==s).toList();
+        }
         public List<Membership> findByChannel(ChannelId c){
             return byId.values().stream().filter(m->m.channelId().equals(c)).toList();
         }
