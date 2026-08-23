@@ -4,12 +4,14 @@ import { Button } from '@/design/components/Button'
 import { Input } from '@/design/components/Input'
 import { useChannelFilesQuery, useAttachFileMutation, useDetachFileMutation } from '@/lib/hooks/useChannels'
 import { useFilesQuery } from '@/lib/hooks/useFiles'
+import { useDialog } from '@/design/components/Dialog'
 
 export function FilesTab({ channelId }: { channelId: string }) {
   const { data: attached = [] } = useChannelFilesQuery(channelId)
   const { data: library = [] } = useFilesQuery()
   const attach = useAttachFileMutation(channelId)
   const detach = useDetachFileMutation(channelId)
+  const dialog = useDialog()
   const [picking, setPicking] = useState(false)
 
   const attachedIds = new Set(attached.map((a) => a.fileId))
@@ -33,7 +35,7 @@ export function FilesTab({ channelId }: { channelId: string }) {
               <p className="text-xs text-text-faint">Visitors see this label — never the real filename.</p>
             </div>
             <button className="text-text-faint hover:text-danger"
-              onClick={() => { if (confirm('Remove this file? Chats in this channel that cited it will be deleted.')) detach.mutate(f.fileId) }}>
+              onClick={async () => { if (await dialog.confirm({ title: 'Remove file from channel?', message: 'Chats in this channel that cited it will be deleted.', confirmLabel: 'Remove', danger: true })) detach.mutate(f.fileId) }}>
               <Trash2 size={16} strokeWidth={1.75} />
             </button>
           </div>

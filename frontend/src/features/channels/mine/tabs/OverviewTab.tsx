@@ -4,10 +4,12 @@ import { Input } from '@/design/components/Input'
 import { Button } from '@/design/components/Button'
 import { editChannel, deleteChannel, type ChannelView } from '@/lib/api/channels'
 import { useQueryClient } from '@tanstack/react-query'
+import { useDialog } from '@/design/components/Dialog'
 
 export function OverviewTab({ channel }: { channel: ChannelView }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const dialog = useDialog()
   const [displayName, setDisplayName] = useState(channel.displayName)
   const [description, setDescription] = useState(channel.description)
   const [expectationSummary, setExpectationSummary] = useState(channel.expectationSummary)
@@ -23,8 +25,13 @@ export function OverviewTab({ channel }: { channel: ChannelView }) {
     } finally { setSaving(false) }
   }
   async function remove() {
-    if (!confirm(`Delete @${channel.username}? This removes all files, members, and chats. This cannot be undone.`)) return
-    if (!confirm('Are you absolutely sure? This is permanent.')) return
+    const ok = await dialog.confirm({
+      title: `Delete @${channel.username}?`,
+      message: 'This permanently removes the channel and all its files, members, and chats. This cannot be undone.',
+      confirmLabel: 'Delete channel',
+      danger: true,
+    })
+    if (!ok) return
     await deleteChannel(channel.id)
     qc.invalidateQueries({ queryKey: ['channels', 'mine'] })
     navigate('/app/channels')

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppLayout } from '@/features/dashboard/shell/AppLayout'
 import { Button } from '@/design/components/Button'
+import { useDialog } from '@/design/components/Dialog'
 import { useChannelPublicQuery, useRequestJoinMutation } from '@/lib/hooks/useDiscover'
 import { listChannelChats, deleteChannelChat } from '@/lib/api/channelChat'
 import { Hash, Plus, Trash2 } from 'lucide-react'
@@ -25,6 +26,7 @@ export default function ChannelLandingPage() {
   })
 
   const qc = useQueryClient()
+  const dialog = useDialog()
   const delChat = useMutation({
     mutationFn: (chatId: string) => deleteChannelChat(channel!.id, chatId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['channel', channel?.id, 'my-chats'] }),
@@ -84,7 +86,7 @@ export default function ChannelLandingPage() {
                           {c.title}
                         </button>
                         <button
-                          onClick={() => { if (confirm('Delete this chat?')) delChat.mutate(c.id) }}
+                          onClick={async () => { if (await dialog.confirm({ title: 'Delete chat?', message: 'This conversation will be permanently removed.', confirmLabel: 'Delete', danger: true })) delChat.mutate(c.id) }}
                           className="text-text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
                           title="Delete chat">
                           <Trash2 size={15} strokeWidth={1.75} />

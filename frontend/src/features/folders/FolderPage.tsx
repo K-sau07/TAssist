@@ -8,6 +8,7 @@ import {
 } from '@/lib/hooks/useFolders'
 import { useFilesQuery } from '@/lib/hooks/useFiles'
 import { Button } from '@/design/components/Button'
+import { useDialog } from '@/design/components/Dialog'
 import { fileSize } from '@/lib/format'
 import { Trash2, Plus, X, FileText, Check, Upload } from 'lucide-react'
 
@@ -20,6 +21,7 @@ export default function FolderPage() {
   const del = useDeleteFolderMutation()
   const addFiles = useAddFilesToFolderMutation(folderId)
   const uploadToFolder = useUploadToFolderMutation(folderId)
+  const dialog = useDialog()
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const folder = folders.find((f) => f.id === folderId)
 
@@ -67,8 +69,8 @@ export default function FolderPage() {
               <Plus size={16} strokeWidth={1.75} /> Add from library
             </Button>
             <Button variant="secondary" onClick={() => navigate('/app/chats/new')}>Start chat in this folder</Button>
-            <Button variant="ghost" onClick={() => {
-              if (confirm('Delete this folder? Files are kept in your library.')) {
+            <Button variant="ghost" onClick={async () => {
+              if (await dialog.confirm({ title: 'Delete folder?', message: 'The folder is removed but its files stay in your library.', confirmLabel: 'Delete', danger: true })) {
                 del.mutate(folderId, { onSuccess: () => navigate('/app') })
               }
             }}><Trash2 size={16} strokeWidth={1.75} /></Button>

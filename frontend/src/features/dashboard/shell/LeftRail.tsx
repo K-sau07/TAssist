@@ -5,6 +5,7 @@ import { useFoldersQuery, useCreateFolderMutation } from '@/lib/hooks/useFolders
 import { useJoinedChannelsQuery } from '@/lib/hooks/useChannels'
 import { useAuthStore } from '@/lib/auth/store'
 import { useThemeStore } from '@/lib/theme/store'
+import { useDialog } from '@/design/components/Dialog'
 import { cn } from '@/lib/cn'
 
 export function LeftRail() {
@@ -15,9 +16,14 @@ export function LeftRail() {
   const clear = useAuthStore((s) => s.clear)
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggle)
+  const dialog = useDialog()
 
-  function newFolder() {
-    const name = window.prompt('Folder name')?.trim()
+  async function newFolder() {
+    const name = (await dialog.prompt({
+      title: 'New folder',
+      placeholder: 'e.g. Coursework',
+      confirmLabel: 'Create',
+    }))?.trim()
     if (name) createFolder.mutate(name)
   }
   function logout() { clear(); navigate('/login', { replace: true }) }
