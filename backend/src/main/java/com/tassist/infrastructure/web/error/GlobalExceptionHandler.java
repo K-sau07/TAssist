@@ -80,6 +80,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Google sign-in failed.", null);
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> multipartTooLarge(org.springframework.web.multipart.MaxUploadSizeExceededException e) {
+        // Framework-level limit hit before our own 25 MB check — return the same clean 413.
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "PAYLOAD_TOO_LARGE", "File exceeds the 25 MB limit.", null);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> fallback(Exception e) {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL", "Something went wrong.", null);
