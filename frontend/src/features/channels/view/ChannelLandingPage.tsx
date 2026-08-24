@@ -6,7 +6,7 @@ import { Button } from '@/design/components/Button'
 import { useDialog } from '@/design/components/Dialog'
 import { useChannelPublicQuery, useRequestJoinMutation } from '@/lib/hooks/useDiscover'
 import { listChannelChats, deleteChannelChat } from '@/lib/api/channelChat'
-import { Hash, Plus, Trash2 } from 'lucide-react'
+import { Hash, Plus, Trash2, MessagesSquare } from 'lucide-react'
 
 export default function ChannelLandingPage() {
   const { handle = '' } = useParams()
@@ -69,12 +69,21 @@ export default function ChannelLandingPage() {
         <div className="mt-8">
           {status === 'OWNER' && (
             <div className="rounded-lg bg-bg-sunken p-5 text-sm text-text-muted">
-              You own this channel. <Button variant="ghost" onClick={() => navigate(`/app/channels/${channel.id}/manage`)}>Manage it</Button>
+              You own this channel.{' '}
+              <Button variant="ghost" onClick={() => navigate(`/app/channels/${channel.id}/manage`)}>Manage it</Button>
+              <Button variant="ghost" onClick={() => navigate(`/c/@${username}/messages`)}>
+                <MessagesSquare size={16} strokeWidth={1.75} /> Messages
+              </Button>
             </div>
           )}
           {status === 'APPROVED' && (
             <div>
-              <Button onClick={openNewChat}><Plus size={16} strokeWidth={1.75} /> New chat</Button>
+              <div className="flex gap-2">
+                <Button onClick={openNewChat}><Plus size={16} strokeWidth={1.75} /> New chat</Button>
+                <Button variant="ghost" onClick={() => navigate(`/c/@${username}/messages`)}>
+                  <MessagesSquare size={16} strokeWidth={1.75} /> Messages
+                </Button>
+              </div>
               {myChats.length > 0 && (
                 <div className="mt-4">
                   <p className="mb-2 text-sm text-text-muted">Your chats in this channel</p>

@@ -15,6 +15,8 @@ import ChannelManagePage from '@/features/channels/mine/ChannelManagePage'
 import DiscoverChannelsPage from '@/features/channels/discover/DiscoverChannelsPage'
 import ChannelLandingPage from '@/features/channels/view/ChannelLandingPage'
 import ChannelChatPage from '@/features/channels/view/ChannelChatPage'
+import MessagesHomePage from '@/features/messaging/MessagesHomePage'
+import ThreadPage from '@/features/messaging/ThreadPage'
 import SettingsPage from '@/features/settings/SettingsPage'
 import NotFoundPage from '@/features/misc/NotFoundPage'
 
@@ -39,6 +41,8 @@ export const router = createBrowserRouter([
 
   { path: '/c/:handle', element: protect(<ChannelLandingPage />) },
   { path: '/c/:handle/chats/:chatId', element: protect(<ChannelChatPage />) },
+  { path: '/c/:handle/messages', element: protect(<MessagesHomePage />) },
+  { path: '/c/:handle/messages/:conversationId', element: protect(<ThreadPage />) },
 
   { path: '*', element: <NotFoundPage /> },
 ])
