@@ -117,7 +117,11 @@ class ConversationServiceTest {
     @BeforeEach void setup(){
         conversations = new FakeConversations(); messages = new FakeMessages(); reads = new FakeReads();
         channels = new FakeChannels(); memberships = new FakeMemberships(); users = new FakeUsers();
-        svc = new ConversationService(conversations, messages, reads, channels, memberships, users);
+        ConversationEventBus events = new ConversationEventBus() {
+            public Subscription subscribe(com.tassist.domain.vo.ConversationId c, Listener l){ return () -> {}; }
+            public void publish(com.tassist.domain.vo.ConversationId c, String e, java.util.Map<String,Object> p){}
+        };
+        svc = new ConversationService(conversations, messages, reads, channels, memberships, users, events);
         owner = UserId.newId(); memberA = UserId.newId(); memberB = UserId.newId(); outsider = UserId.newId();
         Instant now = Instant.now();
         channel = channels.save(new Channel(ChannelId.newId(), owner, "chan-x", "Chan", "", "",

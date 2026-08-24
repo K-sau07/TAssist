@@ -168,4 +168,25 @@ class ConversationEndpointsTest extends AbstractPgvectorContainerTest {
         mvc.perform(get("/api/channels/" + chan + "/group").header("Authorization", "Bearer " + alice))
             .andExpect(status().isForbidden());
     }
+
+    @Test
+    void stream_opensForParticipant_forbiddenForOutsider() throws Exception {
+        String owner = token("owner-f@t.dev"), alice = token("alice-f@t.dev"), bob = token("bob-f@t.dev");
+        String chan = createChannel(owner, "chan-msg-f");
+        joinAndApprove(chan, alice, owner);
+        joinAndApprove(chan, bob, owner);
+        String bobId = meId(bob);
+
+        String dmResp = mvc.perform(post("/api/channels/" + chan + "/dm").header("Authorization", "Bearer " + alice)
+                .contentType("application/json").content("{\"targetUserId\":\"" + bobId + "\"}"))
+            .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String convId = json.readTree(dmResp).get("id").asText();
+
+        // participant can open the stream: access passes synchronously and async processing starts
+        // (the emitter opened). A long-lived SSE emitter never "completes", so we assert async STARTED.
+        mvc.perform(get("/api/channels/" + chan + "/conversations/" + convId + "/stream")
+                .header("Authorization", "Bearer " + bob).accept("text/event-stream"))
+            .andExpect(request().asyncStarted());
+    }
+
 }

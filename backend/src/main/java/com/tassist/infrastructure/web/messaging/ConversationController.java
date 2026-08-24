@@ -1,6 +1,8 @@
 package com.tassist.infrastructure.web.messaging;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tassist.application.messaging.ConversationAiService;
+import com.tassist.application.messaging.ConversationEventBus;
 import com.tassist.application.messaging.ConversationService;
 import com.tassist.domain.error.Unauthenticated;
 import com.tassist.domain.error.ValidationError;
@@ -16,6 +18,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import java.io.IOException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledFuture;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -34,13 +42,17 @@ public class ConversationController {
 
     private final ConversationService conversations;
     private final ConversationAiService ai;
+    private final ConversationEventBus events;
     private final ChannelRepository channels;
     private final UserRepository users;
+    private final ObjectMapper json = new ObjectMapper();
+    private final ScheduledExecutorService pinger = Executors.newScheduledThreadPool(2);
 
     public ConversationController(ConversationService conversations, ConversationAiService ai,
-                                  ChannelRepository channels, UserRepository users) {
+                                  ConversationEventBus events, ChannelRepository channels, UserRepository users) {
         this.conversations = conversations;
         this.ai = ai;
+        this.events = events;
         this.channels = channels;
         this.users = users;
     }
@@ -140,6 +152,36 @@ public class ConversationController {
         UserId me = principal(auth);
         conversations.deleteMessage(me, channelId(channelId), conversationId(conversationId), messageId(messageId));
         return ResponseEntity.noContent().build();
+    }
+
+    // ── realtime SSE stream ──
+    @GetMapping("/conversations/{conversationId}/stream")
+    public SseEmitter stream(@PathVariable String channelId, @PathVariable String conversationId,
+                             Authentication auth) {
+        UserId me = principal(auth);
+        ChannelId cid = channelId(channelId);
+        ConversationId conv = conversationId(conversationId);
+        // access enforced up front — throws 403/404 before we open the stream
+        conversations.getAccessible(me, cid, conv);
+
+        SseEmitter emitter = new SseEmitter(0L); // no timeout; keep-alive pings hold it open
+        ConversationEventBus.Subscription sub = events.subscribe(conv, (event, payload) -> {
+            try {
+                emitter.send(SseEmitter.event().name(event).data(json.writeValueAsString(payload)));
+            } catch (IOException | IllegalStateException e) {
+                emitter.completeWithError(e); // triggers onError → cleanup
+            }
+        });
+        ScheduledFuture<?> keepAlive = pinger.scheduleAtFixedRate(() -> {
+            try { emitter.send(SseEmitter.event().comment("ping")); }
+            catch (IOException | IllegalStateException e) { emitter.complete(); }
+        }, 15, 15, TimeUnit.SECONDS);
+
+        Runnable cleanup = () -> { sub.close(); keepAlive.cancel(false); };
+        emitter.onCompletion(cleanup);
+        emitter.onTimeout(cleanup);
+        emitter.onError(t -> cleanup.run());
+        return emitter;
     }
 
     // ── view assembly ──

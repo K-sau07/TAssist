@@ -40,19 +40,22 @@ public class ConversationService {
     private final ChannelRepository channels;
     private final MembershipRepository memberships;
     private final UserRepository users;
+    private final ConversationEventBus events;
 
     public ConversationService(ConversationRepository conversations,
                                ConversationMessageRepository messages,
                                ConversationReadRepository reads,
                                ChannelRepository channels,
                                MembershipRepository memberships,
-                               UserRepository users) {
+                               UserRepository users,
+                               ConversationEventBus events) {
         this.conversations = conversations;
         this.messages = messages;
         this.reads = reads;
         this.channels = channels;
         this.memberships = memberships;
         this.users = users;
+        this.events = events;
     }
 
     // ── access ──────────────────────────────────────────────────────────────
@@ -175,6 +178,7 @@ public class ConversationService {
         conversations.save(conv.touched(now)); // bump updatedAt for inbox sort
         // sender has implicitly read up to their own message
         reads.markRead(conv.id(), me, now);
+        publishMessage(saved);
         return saved;
     }
 
@@ -188,6 +192,7 @@ public class ConversationService {
         ConversationMessage saved = messages.save(
             ConversationMessage.ai(ConversationMessageId.newId(), conv.id(), content, citations, now));
         conversations.save(conv.touched(now));
+        publishMessage(saved);
         return saved;
     }
 
@@ -216,7 +221,11 @@ public class ConversationService {
         if (!isOwnMessage && !isGroupOwnerModeration)
             throw new Forbidden("you can only delete your own messages");
 
-        if (!msg.isDeleted()) messages.save(msg.deleted(Instant.now()));
+        if (!msg.isDeleted()) {
+            messages.save(msg.deleted(Instant.now()));
+            events.publish(conversationId, "deleted",
+                java.util.Map.of("messageId", messageId.value().toString()));
+        }
     }
 
     // ── group toggle (owner only) ─────────────────────────────────────────────
@@ -236,7 +245,10 @@ public class ConversationService {
     @Transactional
     public void markRead(UserId me, ChannelId channelId, ConversationId conversationId, Instant upTo) {
         requireConversationAccess(me, channelId, conversationId);
-        reads.markRead(conversationId, me, upTo == null ? Instant.now() : upTo);
+        Instant at = upTo == null ? Instant.now() : upTo;
+        reads.markRead(conversationId, me, at);
+        events.publish(conversationId, "read",
+            java.util.Map.of("userId", me.value().toString(), "at", at.toString()));
     }
 
     /** Unread count for {@code me} in a conversation (messages after last-read, not own, not deleted). */
@@ -253,5 +265,17 @@ public class ConversationService {
     /** Latest message in a conversation (for inbox previews); access already enforced by list. */
     public Optional<ConversationMessage> latestMessage(ConversationId conversationId) {
         return messages.findLatest(conversationId);
+    }
+
+    /** Fan out a new message to all subscribers of its conversation (realtime, §8). */
+    private void publishMessage(ConversationMessage m) {
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("messageId", m.id().value().toString());
+        payload.put("conversationId", m.conversationId().value().toString());
+        payload.put("senderKind", m.senderKind().name());
+        payload.put("senderId", m.senderId().map(u -> u.value().toString()).orElse(null));
+        payload.put("content", m.content());
+        payload.put("createdAt", m.createdAt().toString());
+        events.publish(m.conversationId(), "message", payload);
     }
 }
