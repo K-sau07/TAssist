@@ -3,14 +3,14 @@ import { useFilesQuery } from '@/lib/hooks/useFiles'
 import type { FileView } from '@/lib/api/files'
 
 /** Detects an in-progress @token immediately before the caret. */
-function activeToken(text: string, caret: number): { query: string; start: number } | null {
+export function activeToken(text: string, caret: number): { query: string; start: number } | null {
   // look back from caret to the nearest '@' that starts a token (preceded by start/space/newline)
   let i = caret - 1
   while (i >= 0) {
     const ch = text[i]
     if (ch === '@') {
-      const before = i === 0 ? ' ' : text[i - 1]
-      if (/\s|^/.test(before) || i === 0) return { query: text.slice(i + 1, caret), start: i }
+      // valid mention start: '@' at index 0, or immediately preceded by whitespace
+      if (i === 0 || /\s/.test(text[i - 1])) return { query: text.slice(i + 1, caret), start: i }
       return null
     }
     if (/\s/.test(ch)) return null // hit whitespace before an '@' → not in a mention
