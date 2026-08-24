@@ -9,22 +9,18 @@ import {
 import { timeAgo } from '@/lib/format'
 import { Hash, Users, Plus, MessageSquare } from 'lucide-react'
 
+/**
+ * Standalone messaging home at /c/@handle/messages. Thin wrapper that resolves the
+ * channel + membership from the URL, then renders the shared <MessagesHome/> body
+ * (also reused as the owner's "Messages" tab on the Manage page).
+ */
 export default function MessagesHomePage() {
   const { handle = '' } = useParams()
   const username = handle.replace(/^@/, '')
-  const navigate = useNavigate()
   const { data, isLoading } = useChannelPublicQuery(username)
   const channel = data?.channel
   const status = data?.myMembershipStatus ?? null
   const canUse = status === 'APPROVED' || status === 'OWNER'
-  const channelId = channel?.id ?? ''
-
-  const dms = useMyDmsQuery(channelId, canUse)
-  const group = useGroupQuery(channelId, canUse)
-  const [picking, setPicking] = useState(false)
-
-  const go = (conversationId: string) =>
-    navigate(`/c/@${username}/messages/${conversationId}`)
 
   if (isLoading) return <AppLayout><main className="p-8 text-text-muted">Loading…</main></AppLayout>
   if (!channel) return <AppLayout><main className="p-8 text-text-muted">Channel not found.</main></AppLayout>
@@ -41,65 +37,91 @@ export default function MessagesHomePage() {
   return (
     <AppLayout>
       <main className="mx-auto max-w-2xl px-8 py-10">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl">Messages</h1>
-            <p className="text-sm text-text-muted">@{channel.username}</p>
-          </div>
-          <Button onClick={() => setPicking(true)}>
-            <Plus size={16} strokeWidth={1.75} /> New message
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-2xl">Messages</h1>
+          <p className="text-sm text-text-muted">@{channel.username}</p>
         </div>
+        <MessagesHome channelId={channel.id} username={username} />
+      </main>
+    </AppLayout>
+  )
+}
 
-        {/* group room */}
-        {group.data && (
-          <button
-            onClick={() => go(group.data!.id)}
-            className="mb-3 flex w-full items-center gap-3 rounded-lg border border-border bg-bg-elev px-4 py-3 text-left hover:border-primary"
-          >
-            <div className="grid h-9 w-9 place-items-center rounded-round bg-primary/12 text-primary">
-              <Users size={18} strokeWidth={1.75} />
+/**
+ * Shared messaging home body: group room + DM inbox + "New message" picker.
+ * Role-agnostic — owner and approved members see the same space (Slack-style).
+ * Reused by MessagesHomePage (route) and the Manage page "Messages" tab.
+ */
+export function MessagesHome({ channelId, username }: { channelId: string; username: string }) {
+  const navigate = useNavigate()
+  const dms = useMyDmsQuery(channelId)
+  const group = useGroupQuery(channelId)
+  const [picking, setPicking] = useState(false)
+
+  const go = (conversationId: string) =>
+    navigate(`/c/@${username}/messages/${conversationId}`)
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-end">
+        <Button onClick={() => setPicking(true)}>
+          <Plus size={16} strokeWidth={1.75} /> New message
+        </Button>
+      </div>
+
+      {/* group room */}
+      {group.data && (
+        <button
+          onClick={() => go(group.data!.id)}
+          className="mb-3 flex w-full items-center gap-3 rounded-lg border border-border bg-bg-elev px-4 py-3 text-left hover:border-primary"
+        >
+          <div className="grid h-9 w-9 place-items-center rounded-round bg-primary/12 text-primary">
+            <Users size={18} strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              # Group
+              {group.data.unreadCount > 0 && <UnreadBadge n={group.data.unreadCount} />}
+            </p>
+            <p className="truncate text-xs text-text-muted">
+              {group.data.lastMessagePreview ?? 'Everyone in the channel'}
+            </p>
+          </div>
+        </button>
+      )}
+      {group.isError && (
+        <div className="mb-3 rounded-lg border border-dashed border-border p-4 text-center text-xs text-text-muted">
+          Group chat is turned off for this channel.
+        </div>
+      )}
+
+      {/* DM inbox */}
+      <p className="mb-2 mt-6 text-xs uppercase tracking-wider text-text-faint">Direct messages</p>
+      {dms.data && dms.data.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-text-muted">
+          <MessageSquare size={20} className="mx-auto mb-2 text-text-faint" />
+          No conversations yet. Start one with “New message”.
+        </div>
+      )}
+      <div className="space-y-2">
+        {dms.data?.map((dm) => (
+          <button key={dm.id} onClick={() => go(dm.id)}
+            className="flex w-full items-center gap-3 rounded-lg border border-border bg-bg-elev px-4 py-3 text-left hover:border-primary">
+            <div className="grid h-9 w-9 place-items-center rounded-round bg-bg-sunken text-sm font-medium">
+              {(dm.otherParticipant?.displayName ?? '?').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-2 text-sm font-medium">
-                # Group
-                {group.data.unreadCount > 0 && <UnreadBadge n={group.data.unreadCount} />}
+                {dm.otherParticipant?.displayName ?? 'Unknown'}
+                {dm.otherParticipant?.isOwner && <OwnerTag />}
+                {dm.unreadCount > 0 && <UnreadBadge n={dm.unreadCount} />}
               </p>
-              <p className="truncate text-xs text-text-muted">
-                {group.data.lastMessagePreview ?? 'Everyone in the channel'}
-              </p>
+              <p className="truncate text-xs text-text-muted">{dm.lastMessagePreview ?? 'No messages yet'}</p>
             </div>
+            <span className="shrink-0 text-xs text-text-faint">{timeAgo(dm.updatedAt)}</span>
           </button>
-        )}
-
-        {/* DM inbox */}
-        <p className="mb-2 mt-6 text-xs uppercase tracking-wider text-text-faint">Direct messages</p>
-        {dms.data && dms.data.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-text-muted">
-            <MessageSquare size={20} className="mx-auto mb-2 text-text-faint" />
-            No conversations yet. Start one with “New message”.
-          </div>
-        )}
-        <div className="space-y-2">
-          {dms.data?.map((dm) => (
-            <button key={dm.id} onClick={() => go(dm.id)}
-              className="flex w-full items-center gap-3 rounded-lg border border-border bg-bg-elev px-4 py-3 text-left hover:border-primary">
-              <div className="grid h-9 w-9 place-items-center rounded-round bg-bg-sunken text-sm font-medium">
-                {(dm.otherParticipant?.displayName ?? '?').charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 text-sm font-medium">
-                  {dm.otherParticipant?.displayName ?? 'Unknown'}
-                  {dm.otherParticipant?.isOwner && <OwnerTag />}
-                  {dm.unreadCount > 0 && <UnreadBadge n={dm.unreadCount} />}
-                </p>
-                <p className="truncate text-xs text-text-muted">{dm.lastMessagePreview ?? 'No messages yet'}</p>
-              </div>
-              <span className="shrink-0 text-xs text-text-faint">{timeAgo(dm.updatedAt)}</span>
-            </button>
-          ))}
-        </div>
-      </main>
+        ))}
+      </div>
 
       {picking && (
         <NewMessagePicker
@@ -108,7 +130,7 @@ export default function MessagesHomePage() {
           onOpened={(id) => { setPicking(false); go(id) }}
         />
       )}
-    </AppLayout>
+    </div>
   )
 }
 

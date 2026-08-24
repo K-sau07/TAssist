@@ -5,9 +5,10 @@ import { useMyChannelsQuery } from '@/lib/hooks/useChannels'
 import { OverviewTab } from './tabs/OverviewTab'
 import { FilesTab } from './tabs/FilesTab'
 import { MembersTab } from './tabs/MembersTab'
+import { MessagesTab } from './tabs/MessagesTab'
 
-type Tab = 'overview' | 'files' | 'members'
-const TABS: Tab[] = ['overview', 'files', 'members']
+type Tab = 'overview' | 'files' | 'members' | 'messages'
+const TABS: Tab[] = ['overview', 'files', 'members', 'messages']
 
 export default function ChannelManagePage() {
   const { channelId = '' } = useParams()
@@ -39,6 +40,7 @@ export default function ChannelManagePage() {
             {tab === 'overview' && <OverviewTab channel={channel} />}
             {tab === 'files' && <FilesTab channelId={channelId} />}
             {tab === 'members' && <MembersTab channelId={channelId} />}
+            {tab === 'messages' && <MessagesTab channel={channel} />}
           </>
         )}
       </main>
