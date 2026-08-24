@@ -219,6 +219,17 @@ public class ConversationService {
         if (!msg.isDeleted()) messages.save(msg.deleted(Instant.now()));
     }
 
+    // ── group toggle (owner only) ─────────────────────────────────────────────
+
+    /** Enable/disable the channel's group room. Owner only (02_MESSAGING_SPEC §2.2). */
+    @Transactional
+    public void setGroupEnabled(UserId me, ChannelId channelId, boolean enabled) {
+        Channel channel = channelOrThrow(channelId);
+        if (!channel.ownerId().equals(me))
+            throw new Forbidden("only the channel owner can change the group room setting");
+        channels.save(channel.withGroupChatEnabled(enabled));
+    }
+
     // ── read state ──────────────────────────────────────────────────────────
 
     /** Mark the conversation read for the caller up to {@code upTo} (or now). Max-wins. */
