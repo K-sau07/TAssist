@@ -11,8 +11,10 @@ backend/target/
 *.war
 
 # --- Local file storage (uploaded bytes, never committed) ---
+# NOTE: keep this specific to the runtime upload dir. A bare "storage/" also matches
+# the source package infrastructure/storage/, which silently un-tracked LocalDiskFileStorage
+# and broke CI (no FileStorage bean on the runner). Do not re-add a bare "storage/".
 backend/storage/
-storage/
 
 # --- Frontend (Node / Vite) ---
 frontend/node_modules/
