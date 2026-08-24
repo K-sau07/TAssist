@@ -50,7 +50,7 @@ public class ChannelService implements ChannelUseCase {
         Instant now = Instant.now();
         Channel channel = new Channel(ChannelId.newId(), actingUser, username, cmd.displayName(),
             cmd.description(), cmd.expectationSummary(), cmd.visibility(), java.util.Optional.empty(),
-            cmd.requireMessageOnReRequest(), now, now);
+            cmd.requireMessageOnReRequest(), true, now, now);
         Channel saved = channels.save(channel);
         log.info("Channel created: {} @{} owner={}", saved.id().value(), username, actingUser.value());
         return saved;
@@ -87,6 +87,7 @@ public class ChannelService implements ChannelUseCase {
             cmd.visibility().orElse(c.visibility()),
             c.avatarKey(),
             cmd.requireMessageOnReRequest().orElse(c.requireMessageOnReRequest()),
+            c.groupChatEnabled(),
             c.createdAt(), Instant.now());
         return channels.save(updated);
     }

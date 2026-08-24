@@ -18,6 +18,7 @@ public record Channel(
         ChannelVisibility visibility,
         Optional<String> avatarKey,
         boolean requireMessageOnReRequest,
+        boolean groupChatEnabled,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -36,5 +37,11 @@ public record Channel(
         avatarKey = avatarKey == null ? Optional.empty() : avatarKey;
         if (createdAt == null) throw new IllegalArgumentException("Channel.createdAt must not be null");
         if (updatedAt == null) throw new IllegalArgumentException("Channel.updatedAt must not be null");
+    }
+
+    /** Returns a copy with the group room toggled, updatedAt bumped (owner setting, 02_MESSAGING_SPEC §2.5). */
+    public Channel withGroupChatEnabled(boolean enabled) {
+        return new Channel(id, ownerId, username, displayName, description, expectationSummary,
+            visibility, avatarKey, requireMessageOnReRequest, enabled, createdAt, java.time.Instant.now());
     }
 }

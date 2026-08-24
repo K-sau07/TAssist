@@ -30,7 +30,7 @@ class ConversationPersistenceTest extends AbstractPgvectorContainerTest {
     private Channel newChannel(UserId owner, String username) {
         Instant now = Instant.now();
         return new Channel(ChannelId.newId(), owner, username, "Display", "", "",
-            ChannelVisibility.PUBLIC, Optional.empty(), true, now, now);
+            ChannelVisibility.PUBLIC, Optional.empty(), true, true, now, now);
     }
 
     @Test

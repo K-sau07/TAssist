@@ -22,6 +22,7 @@ public class ChannelEntity {
 
     @Column(name = "avatar_key") private String avatarKey;
     @Column(name = "require_message_on_rerequest", nullable = false) private boolean requireMessageOnReRequest;
+    @Column(name = "group_chat_enabled", nullable = false) private boolean groupChatEnabled;
     @Column(name = "created_at", nullable = false) private Instant createdAt;
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;
 
@@ -35,6 +36,7 @@ public class ChannelEntity {
     public VisibilityDb getVisibility() { return visibility; } public void setVisibility(VisibilityDb v) { this.visibility = v; }
     public String getAvatarKey() { return avatarKey; } public void setAvatarKey(String a) { this.avatarKey = a; }
     public boolean isRequireMessageOnReRequest() { return requireMessageOnReRequest; } public void setRequireMessageOnReRequest(boolean r) { this.requireMessageOnReRequest = r; }
+    public boolean isGroupChatEnabled() { return groupChatEnabled; } public void setGroupChatEnabled(boolean g) { this.groupChatEnabled = g; }
     public Instant getCreatedAt() { return createdAt; } public void setCreatedAt(Instant t) { this.createdAt = t; }
     public Instant getUpdatedAt() { return updatedAt; } public void setUpdatedAt(Instant t) { this.updatedAt = t; }
 

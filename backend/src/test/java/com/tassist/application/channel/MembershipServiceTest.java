@@ -63,7 +63,7 @@ class MembershipServiceTest {
     private Channel makeChannel(ChannelId id, UserId o, boolean reqMsg){
         Instant now=Instant.now();
         return new Channel(id, o, "chan-x", "Chan X", "", "", ChannelVisibility.PUBLIC,
-            Optional.empty(), reqMsg, now, now);
+            Optional.empty(), reqMsg, true, now, now);
     }
 
     @Test void request_join_creates_pending(){

@@ -21,6 +21,7 @@ public final class ChannelMapper {
         e.setVisibility(ChannelEntity.VisibilityDb.valueOf(c.visibility().name()));
         e.setAvatarKey(c.avatarKey().orElse(null));
         e.setRequireMessageOnReRequest(c.requireMessageOnReRequest());
+        e.setGroupChatEnabled(c.groupChatEnabled());
         e.setCreatedAt(c.createdAt());
         e.setUpdatedAt(c.updatedAt());
         return e;
@@ -37,6 +38,7 @@ public final class ChannelMapper {
             ChannelVisibility.valueOf(e.getVisibility().name()),
             Optional.ofNullable(e.getAvatarKey()),
             e.isRequireMessageOnReRequest(),
+            e.isGroupChatEnabled(),
             e.getCreatedAt(),
             e.getUpdatedAt()
         );
