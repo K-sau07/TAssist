@@ -57,7 +57,7 @@ export default function ThreadPage() {
       conversationStreamPath(channelId, conversationId),
       {
         onMessage: (e) => {
-          setLive((cur) => mergeMessage(cur, sseToMessage(e, participants)))
+          setLive((cur) => mergeMessage(cur, sseToMessage(e, participants, me)))
           requestAnimationFrame(scrollToBottom)
         },
         onDeleted: (e) => setLive((cur) => applyDeleted(cur, e.messageId)),
@@ -67,7 +67,7 @@ export default function ThreadPage() {
       ac.signal,
     )
     return () => ac.abort()
-  }, [channelId, conversationId, participants])
+  }, [channelId, conversationId, participants, me])
 
   // Mark read on open + whenever new messages arrive.
   useEffect(() => {
@@ -187,9 +187,17 @@ export default function ThreadPage() {
 function sseToMessage(
   e: { messageId: string; senderKind: 'HUMAN' | 'AI'; senderId: string | null; content: string; createdAt: string },
   participants: Array<{ userId: string; displayName: string }>,
+  me: { id: string; displayName: string } | null,
 ): MessageView {
   const sender = e.senderId
-    ? { userId: e.senderId, displayName: participants.find((p) => p.userId === e.senderId)?.displayName ?? 'Member' }
+    ? {
+        userId: e.senderId,
+        // My own echoed message isn't in `participants` (that list excludes me),
+        // so resolve my name from the session first, then participants, then a last resort.
+        displayName: e.senderId === me?.id
+          ? me.displayName
+          : participants.find((p) => p.userId === e.senderId)?.displayName ?? 'Member',
+      }
     : null
   return {
     id: e.messageId,
