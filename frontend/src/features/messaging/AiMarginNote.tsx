@@ -3,6 +3,7 @@ import { Sparkles, Trash2, BookOpen } from 'lucide-react'
 import type { MessageView, CitationView } from '@/lib/api/messaging'
 import type { SourceItem } from '@/lib/sse/types'
 import { SnippetDrawer } from '@/features/chat/components/SnippetDrawer'
+import { Markdown } from '@/design/components/Markdown'
 import { isGroundedAi } from './logic'
 
 /**
@@ -38,10 +39,8 @@ export function AiMarginNote({
           <span className="text-2xs text-text-faint">{time}</span>
         </div>
 
-        {/* answer — typeset like a passage */}
-        <div className="whitespace-pre-wrap break-words font-body text-md leading-[1.6] text-text">
-          {msg.content}
-        </div>
+        {/* answer — typeset like a passage, markdown-rendered */}
+        <Markdown>{msg.content}</Markdown>
 
         {/* sources footer — only when grounded */}
         {grounded && (
