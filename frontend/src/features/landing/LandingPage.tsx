@@ -1,21 +1,32 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Upload, MessagesSquare, BookOpen, ShieldCheck, Users, FileLock2, Moon, Zap } from 'lucide-react'
 import { MarginNoteDemo } from './parts/MarginNoteDemo'
 import { Button } from '@/design/components/Button'
 import { useAuthStore } from '@/lib/auth/store'
 
-const reveal = {
-  initial: { opacity: 0, y: 16 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: '-80px' },
-  transition: { type: 'spring', stiffness: 140, damping: 22 },
-} as const
-
 export default function LandingPage() {
   const loggedIn = useAuthStore((s) => Boolean(s.token))
+  const reduce = useReducedMotion()
   const howRef = useRef<HTMLElement>(null)
+
+  // Scroll-reveal + hero entrance: no movement when reduced motion is requested (§A5).
+  const reveal = reduce
+    ? { initial: false as const }
+    : {
+        initial: { opacity: 0, y: 16 },
+        whileInView: { opacity: 1, y: 0 },
+        viewport: { once: true, margin: '-80px' },
+        transition: { type: 'spring', stiffness: 140, damping: 22 },
+      }
+  const heroEntrance = reduce
+    ? { initial: false as const }
+    : {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0 },
+        transition: { type: 'spring', stiffness: 140, damping: 22 },
+      }
 
   return (
     <div className="min-h-screen bg-bg text-text">
@@ -36,8 +47,7 @@ export default function LandingPage() {
 
       {/* hero */}
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-16 md:grid-cols-2 md:py-24">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 140, damping: 22 }}>
+        <motion.div {...heroEntrance}>
           <p className="mb-3 text-2xs font-semibold uppercase tracking-[0.2em] text-text-faint">
             The teaching assistant for your documents
           </p>
@@ -151,13 +161,13 @@ function Bento({ icon: Icon, title, body, wide }: {
   icon: typeof BookOpen; title: string; body: string; wide?: boolean
 }) {
   return (
-    <motion.div {...reveal}
+    <div
       className={`flex flex-col rounded-lg border border-border bg-bg-elev p-6 shadow-1 transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-2 ${wide ? 'lg:col-span-2' : ''}`}>
       <div className="grid h-11 w-11 place-items-center rounded-md bg-primary-wash text-primary">
         <Icon size={20} strokeWidth={1.8} />
       </div>
       <h3 className="mt-4 font-display text-lg">{title}</h3>
       <p className="mt-1 text-sm text-text-muted">{body}</p>
-    </motion.div>
+    </div>
   )
 }
