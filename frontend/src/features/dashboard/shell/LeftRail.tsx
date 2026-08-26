@@ -44,7 +44,7 @@ export function LeftRail() {
 
       <nav className="mt-6 flex-1 overflow-y-auto">
         <div className="mb-1 flex items-center justify-between px-3">
-          <span className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-text-faint">
+          <span className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-text-faint">
             <Library size={13} strokeWidth={1.75} /> Library
           </span>
           <button onClick={newFolder} className="text-text-faint hover:text-primary" title="New folder">
@@ -60,16 +60,18 @@ export function LeftRail() {
           ))}
         </div>
 
-        <div className="mb-1 px-3 text-xs uppercase tracking-wider text-text-faint">Channels</div>
+        <div className="mb-1 px-3 text-2xs font-semibold uppercase tracking-wider text-text-faint">Channels</div>
         <NavLink to="/app/channels" className={linkCls}><Hash size={16} strokeWidth={1.75} /> My channels</NavLink>
         <NavLink to="/app/discover" className={linkCls}><Compass size={16} strokeWidth={1.75} /> Discover</NavLink>
 
         {joined.length > 0 && (
           <div className="mt-4">
-            <div className="mb-1 px-3 text-xs uppercase tracking-wider text-text-faint">Joined</div>
+            <div className="mb-1 px-3 text-2xs font-semibold uppercase tracking-wider text-text-faint">Joined</div>
             {joined.map((c) => (
               <NavLink key={c.id} to={`/c/@${c.username}`} className={linkCls} title={c.displayName}>
-                <Hash size={16} strokeWidth={1.75} /> <span className="truncate">{c.displayName}</span>
+                <Hash size={16} strokeWidth={1.75} /> <span className="flex-1 truncate">{c.displayName}</span>
+                {/* Bloops-lite (D-05-5): unread dot renders here once GET /api/me/unread
+                    is wired on the backend. No placeholder shown until real data exists. */}
               </NavLink>
             ))}
           </div>
