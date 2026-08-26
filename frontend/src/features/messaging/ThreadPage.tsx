@@ -11,9 +11,9 @@ import {
 import type { MessageView } from '@/lib/api/messaging'
 import { conversationStreamPath } from '@/lib/api/messaging'
 import { subscribeConversation } from '@/lib/sse/subscribeConversation'
-import { mergeMessage, applyDeleted } from './logic'
+import { mergeMessage, applyDeleted, groupsWith, startsNewDay, dayDividerLabel } from './logic'
 import { MessageComposer } from './MessageComposer'
-import { MessageBubble } from './MessageBubble'
+import { MessageRow } from './MessageRow'
 import { Users } from 'lucide-react'
 
 export default function ThreadPage() {
@@ -123,16 +123,33 @@ export default function ThreadPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="mx-auto max-w-3xl space-y-1">
+        <div className="mx-auto max-w-3xl">
           {msgQuery.isLoading && <p className="text-text-muted">Loading messages…</p>}
           {!msgQuery.isLoading && live.length === 0 && (
             <p className="py-10 text-center text-sm text-text-muted">No messages yet. Say hello 👋</p>
           )}
-          {live.map((m) => (
-            <MessageBubble key={m.id} msg={m} mine={m.sender?.userId === me?.id}
-              canDelete={m.sender?.userId === me?.id || isOwner}
-              onDelete={() => remove(m.id)} />
-          ))}
+          {live.map((m, i) => {
+            const prev = live[i - 1]
+            const newDay = startsNewDay(prev, m)
+            // a day break always resets grouping
+            const grouped = !newDay && groupsWith(prev, m)
+            return (
+              <div key={m.id}>
+                {newDay && (
+                  <div className="my-3 flex items-center gap-3" role="separator">
+                    <span className="h-px flex-1 bg-border" />
+                    <span className="rounded-round border border-border bg-bg px-2.5 py-0.5 text-2xs font-medium text-text-muted">
+                      {dayDividerLabel(m.createdAt)}
+                    </span>
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+                )}
+                <MessageRow msg={m} grouped={grouped}
+                  canDelete={m.sender?.userId === me?.id || isOwner}
+                  onDelete={() => remove(m.id)} />
+              </div>
+            )
+          })}
           <div ref={bottomRef} />
         </div>
       </div>

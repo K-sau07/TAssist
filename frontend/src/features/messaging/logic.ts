@@ -75,3 +75,47 @@ export function unreadFor(list: MessageView[], myUserId: string, lastReadIso: st
     (m) => !m.deleted && m.sender?.userId !== myUserId && new Date(m.createdAt).getTime() > since,
   ).length
 }
+
+// ── G-UI1: Slack-style row grouping + day dividers (05_GLOWUP §D5) ──
+
+/**
+ * Should `cur` collapse under `prev` (same author, close in time, both human)?
+ * Grouped messages hide the repeated avatar/name/timestamp for a tighter thread,
+ * exactly like Slack. AI turns never group (each is a standalone "margin note").
+ */
+export function groupsWith(
+  prev: MessageView | undefined,
+  cur: MessageView,
+  windowMs = 5 * 60 * 1000,
+): boolean {
+  if (!prev) return false
+  if (prev.senderKind !== 'HUMAN' || cur.senderKind !== 'HUMAN') return false
+  if (prev.deleted || cur.deleted) return false
+  if (prev.sender?.userId == null || prev.sender.userId !== cur.sender?.userId) return false
+  const dt = new Date(cur.createdAt).getTime() - new Date(prev.createdAt).getTime()
+  return dt >= 0 && dt <= windowMs
+}
+
+/**
+ * Label for a day-divider between messages: "Today" / "Yesterday" / "Mar 3"
+ * (year added only when it differs from now). `now` injectable for tests.
+ */
+export function dayDividerLabel(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso)
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const dayMs = 86_400_000
+  const diffDays = Math.round((startOf(now) - startOf(d)) / dayMs)
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  const sameYear = d.getFullYear() === now.getFullYear()
+  return d.toLocaleDateString('en-US', sameYear
+    ? { month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/** True if `cur` starts a new calendar day vs `prev` (→ render a day divider before it). */
+export function startsNewDay(prev: MessageView | undefined, cur: MessageView): boolean {
+  if (!prev) return true
+  const a = new Date(prev.createdAt), b = new Date(cur.createdAt)
+  return a.getFullYear() !== b.getFullYear() || a.getMonth() !== b.getMonth() || a.getDate() !== b.getDate()
+}
