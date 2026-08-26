@@ -119,3 +119,15 @@ export function startsNewDay(prev: MessageView | undefined, cur: MessageView): b
   const a = new Date(prev.createdAt), b = new Date(cur.createdAt)
   return a.getFullYear() !== b.getFullYear() || a.getMonth() !== b.getMonth() || a.getDate() !== b.getDate()
 }
+
+// ── G-UI2: AI margin-note grounding state (05_GLOWUP §D5, §A2 missing-source disclosure) ──
+
+/**
+ * Is an AI answer grounded (backed by retrieved sources) or a fallback?
+ * Our RAG guarantee: a grounded answer always carries citations; a fallback
+ * ("not in your documents") carries none. We render grounded = indigo, fallback
+ * = honest amber — never styled identically (the anti-hallucination pattern).
+ */
+export function isGroundedAi(msg: MessageView): boolean {
+  return msg.senderKind === 'AI' && msg.citations.length > 0
+}

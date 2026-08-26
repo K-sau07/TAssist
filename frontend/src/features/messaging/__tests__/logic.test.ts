@@ -157,3 +157,21 @@ describe('startsNewDay', () => {
     expect(startsNewDay(d2, d3)).toBe(false)
   })
 })
+
+import { isGroundedAi } from '../logic'
+
+describe('isGroundedAi', () => {
+  it('grounded when AI has citations', () => {
+    expect(isGroundedAi(msg({ senderKind: 'AI', sender: null, citations: [
+      { fileId: 'f', chunkId: 'c', displayLabel: 'Lecture 3', snippet: 's' },
+    ] }))).toBe(true)
+  })
+  it('fallback when AI has no citations', () => {
+    expect(isGroundedAi(msg({ senderKind: 'AI', sender: null, citations: [] }))).toBe(false)
+  })
+  it('human messages are never "grounded AI"', () => {
+    expect(isGroundedAi(msg({ senderKind: 'HUMAN', citations: [
+      { fileId: 'f', chunkId: 'c', displayLabel: 'x', snippet: null },
+    ] }))).toBe(false)
+  })
+})

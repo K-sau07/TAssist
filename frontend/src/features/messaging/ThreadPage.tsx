@@ -14,6 +14,7 @@ import { subscribeConversation } from '@/lib/sse/subscribeConversation'
 import { mergeMessage, applyDeleted, groupsWith, startsNewDay, dayDividerLabel } from './logic'
 import { MessageComposer } from './MessageComposer'
 import { MessageRow } from './MessageRow'
+import { AiMarginNote } from './AiMarginNote'
 import { Users } from 'lucide-react'
 
 export default function ThreadPage() {
@@ -144,9 +145,15 @@ export default function ThreadPage() {
                     <span className="h-px flex-1 bg-border" />
                   </div>
                 )}
-                <MessageRow msg={m} grouped={grouped}
-                  canDelete={m.sender?.userId === me?.id || isOwner}
-                  onDelete={() => remove(m.id)} />
+                {m.senderKind === 'AI' ? (
+                  <AiMarginNote msg={m}
+                    canDelete={m.sender?.userId === me?.id || isOwner}
+                    onDelete={() => remove(m.id)} />
+                ) : (
+                  <MessageRow msg={m} grouped={grouped}
+                    canDelete={m.sender?.userId === me?.id || isOwner}
+                    onDelete={() => remove(m.id)} />
+                )}
               </div>
             )
           })}
