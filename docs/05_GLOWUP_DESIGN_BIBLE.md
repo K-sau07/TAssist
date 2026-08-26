@@ -199,3 +199,15 @@ Foundation → app core → app breadth → landing → polish. Each step indepe
 ---
 
 *End of draft. No glow-up code past G-UI0 until this is signed off and D-05-1…D-05-5 are decided.*
+
+---
+
+## PART I — DECISIONS LOCKED (signed off)
+
+- **D-05-1 ✅ RESOLVED:** Keep + refine warm-paper + indigo. Reject the dark-neon AI-SaaS default (Slack-style differentiation). No palette replacement.
+- **D-05-2 ✅ RESOLVED:** Display typeface = **warm humanist serif** (scholarly/bookish, "study" feel). Exact face chosen in G-UI0 by trying candidates in-situ; body/UI stays a clean legible sans; mono/tabular for citation numerals + timestamps.
+- **D-05-3 ✅ RESOLVED:** Build order = **app core first** (G-UI0→G-UI4: tokens/motion/type → message rows → AI margin-note → composer/header/empty → channel rail), THEN breadth (G-UI5→7), THEN landing (G-UI8), THEN motion/a11y pass + verify (G-UI9→10).
+- **D-05-4 ✅ RESOLVED:** Deterministic initials-tile avatars (color hashed from displayName; 6-tint palette from existing accents). No uploads.
+- **D-05-5 ✅ RESOLVED:** Slack "Bloops" — ship the **unread-dot visual now**; full cross-channel wiring waits on `GET /api/me/unread` (Phase 2 backend). Hover "Peeks" deferred.
+
+Build proceeds per Part G, starting G-UI0.
