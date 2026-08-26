@@ -29,7 +29,7 @@ export default function MyChannelsPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {channels.map((c) => (
-              <Link key={c.id} to={`/app/channels/${c.id}/manage`}
+              <Link key={c.id} to={`/c/@${c.username}`}
                 className="flex items-start gap-3 rounded-lg border border-border bg-bg-elev p-5 shadow-1 transition-transform hover:-translate-y-0.5 hover:shadow-2">
                 <div className="grid h-11 w-11 place-items-center rounded-round bg-bg-sunken text-primary">
                   <Hash size={20} strokeWidth={1.75} />

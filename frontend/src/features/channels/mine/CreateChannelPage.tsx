@@ -49,7 +49,7 @@ export default function CreateChannelPage() {
         visibility: values.visibility as Visibility,
         requireMessageOnReRequest: values.requireMessageOnReRequest ?? false,
       })
-      navigate(`/app/channels/${c.id}/manage`)
+      navigate(`/c/@${c.username}`)
     } catch (e) {
       setSubmitError(e instanceof ApiError ? e.message : 'Could not create channel.')
     }

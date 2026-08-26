@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { AppLayout } from '@/features/dashboard/shell/AppLayout'
+import { useParams } from 'react-router-dom'
 import { useDialog } from '@/design/components/Dialog'
 import { useAuthStore } from '@/lib/auth/store'
-import { useChannelPublicQuery } from '@/lib/hooks/useDiscover'
+import { useChannelContext } from '@/features/channels/shell/ChannelShell'
 import { useChannelFilesQuery } from '@/lib/hooks/useChannels'
 import {
   useMessagesQuery, useParticipantsQuery, usePostMessageMutation,
-  useDeleteMessageMutation, useMarkReadMutation,
+  useDeleteMessageMutation, useMarkReadMutation, useMyDmsQuery, useGroupQuery,
 } from '@/lib/hooks/useMessaging'
 import type { MessageView } from '@/lib/api/messaging'
 import { conversationStreamPath } from '@/lib/api/messaging'
@@ -15,26 +14,27 @@ import { subscribeConversation } from '@/lib/sse/subscribeConversation'
 import { mergeMessage, applyDeleted } from './logic'
 import { MessageComposer } from './MessageComposer'
 import { MessageBubble } from './MessageBubble'
-import { ArrowLeft } from 'lucide-react'
+import { Users } from 'lucide-react'
 
 export default function ThreadPage() {
-  const { handle = '', conversationId = '' } = useParams()
-  const username = handle.replace(/^@/, '')
-  const navigate = useNavigate()
+  const { conversationId = '' } = useParams()
   const me = useAuthStore((s) => s.user)
-
-  const { data: pub } = useChannelPublicQuery(username)
-  const channel = pub?.channel
-  const channelId = channel?.id ?? ''
-  const isOwner = pub?.myMembershipStatus === 'OWNER'
+  const { channel, isOwner } = useChannelContext()
+  const channelId = channel.id
 
   const msgQuery = useMessagesQuery(channelId, conversationId, Boolean(channelId))
   const { data: participants = [] } = useParticipantsQuery(channelId, Boolean(channelId))
   const { data: channelFiles = [] } = useChannelFilesQuery(channelId)
+  const dms = useMyDmsQuery(channelId)
+  const group = useGroupQuery(channelId)
   const post = usePostMessageMutation(channelId, conversationId)
   const del = useDeleteMessageMutation(channelId, conversationId)
   const markRead = useMarkReadMutation(channelId, conversationId)
   const dialog = useDialog()
+
+  // Header title: "# Group" for the group room, else the DM partner's name.
+  const isGroup = group.data?.id === conversationId
+  const dmName = dms.data?.find((d) => d.id === conversationId)?.otherParticipant?.displayName
 
   // Local message list = server snapshot + live SSE deltas.
   const [live, setLive] = useState<MessageView[]>([])
@@ -96,44 +96,54 @@ export default function ThreadPage() {
     if (ok) del.mutate(id)
   }
 
-  if (!channel) return <AppLayout><main className="p-8 text-text-muted">Loading…</main></AppLayout>
-
   return (
-    <AppLayout>
-      <div className="flex h-screen flex-col">
-        <header className="flex items-center gap-3 border-b border-border px-6 py-3">
-          <button onClick={() => navigate(`/c/@${username}/messages`)} className="text-text-faint hover:text-text">
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <p className="text-sm font-medium">Conversation</p>
-            <p className="text-xs text-text-muted">@{channel.username}</p>
-          </div>
-        </header>
-
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="mx-auto max-w-3xl space-y-1">
-            {msgQuery.isLoading && <p className="text-text-muted">Loading messages…</p>}
-            {!msgQuery.isLoading && live.length === 0 && (
-              <p className="py-10 text-center text-sm text-text-muted">No messages yet. Say hello 👋</p>
-            )}
-            {live.map((m) => (
-              <MessageBubble key={m.id} msg={m} mine={m.sender?.userId === me?.id}
-                canDelete={m.sender?.userId === me?.id || isOwner}
-                onDelete={() => remove(m.id)} />
-            ))}
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        {post.isError && (
-          <div className="mx-auto max-w-3xl px-6 pb-1 text-xs text-danger">
-            Couldn’t send that message. Please try again.
-          </div>
+    <div className="flex h-screen flex-col">
+      <header className="flex items-center gap-3 border-b border-border px-6 py-3">
+        {isGroup ? (
+          <>
+            <div className="grid h-8 w-8 place-items-center rounded-round bg-primary/12 text-primary">
+              <Users size={16} strokeWidth={1.75} />
+            </div>
+            <div>
+              <p className="text-sm font-medium"># Group</p>
+              <p className="text-xs text-text-muted">Everyone in @{channel.username}</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid h-8 w-8 place-items-center rounded-round bg-bg-sunken text-sm font-medium">
+              {(dmName ?? '?').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="text-sm font-medium">{dmName ?? 'Conversation'}</p>
+              <p className="text-xs text-text-muted">Direct message</p>
+            </div>
+          </>
         )}
-        <MessageComposer disabled={post.isPending} participants={participants} files={fileSuggestions} onSend={send} />
+      </header>
+
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="mx-auto max-w-3xl space-y-1">
+          {msgQuery.isLoading && <p className="text-text-muted">Loading messages…</p>}
+          {!msgQuery.isLoading && live.length === 0 && (
+            <p className="py-10 text-center text-sm text-text-muted">No messages yet. Say hello 👋</p>
+          )}
+          {live.map((m) => (
+            <MessageBubble key={m.id} msg={m} mine={m.sender?.userId === me?.id}
+              canDelete={m.sender?.userId === me?.id || isOwner}
+              onDelete={() => remove(m.id)} />
+          ))}
+          <div ref={bottomRef} />
+        </div>
       </div>
-    </AppLayout>
+
+      {post.isError && (
+        <div className="mx-auto max-w-3xl px-6 pb-1 text-xs text-danger">
+          Couldn’t send that message. Please try again.
+        </div>
+      )}
+      <MessageComposer disabled={post.isPending} participants={participants} files={fileSuggestions} onSend={send} />
+    </div>
   )
 }
 
