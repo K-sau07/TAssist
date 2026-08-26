@@ -65,38 +65,47 @@ export function MessageComposer({ disabled, participants, files, onSend }: Props
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() }
   }
 
-  const icon = (k: Suggestion['kind']) =>
-    k === 'ai' ? <Sparkles size={15} className="shrink-0 text-primary" />
-      : k === 'participant' ? <User size={15} className="shrink-0 text-text-faint" />
-      : <FileText size={15} className="shrink-0 text-text-faint" />
+  const kindMeta = (k: Suggestion['kind']) =>
+    k === 'ai' ? { icon: <Sparkles size={15} className="shrink-0 text-primary" />, tag: 'AI' }
+      : k === 'participant' ? { icon: <User size={15} className="shrink-0 text-text-faint" />, tag: 'Person' }
+        : { icon: <FileText size={15} className="shrink-0 text-text-faint" />, tag: 'File' }
 
   return (
-    <div className="border-t border-border bg-bg px-6 py-4">
+    <div className="border-t border-border bg-bg px-6 pb-4 pt-3">
       <div className="relative mx-auto max-w-3xl">
         {open && (
-          <div className="absolute bottom-full mb-2 w-80 overflow-hidden rounded-lg border border-border bg-bg-elev shadow-2">
-            {suggestions.map((s, i) => (
-              <button key={s.insert + i}
-                onMouseDown={(e) => { e.preventDefault(); choose(i) }}
-                onMouseEnter={() => setActive(i)}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm ${i === active ? 'bg-primary/10 text-primary' : 'hover:bg-bg-sunken'}`}>
-                {icon(s.kind)}
-                <span className="truncate">{s.label}</span>
-              </button>
-            ))}
+          <div className="absolute bottom-full mb-2 w-80 overflow-hidden rounded-lg border border-border bg-bg-elev shadow-2"
+            role="listbox" aria-label="Mention suggestions">
+            {suggestions.map((s, i) => {
+              const meta = kindMeta(s.kind)
+              return (
+                <button key={s.insert + i} role="option" aria-selected={i === active}
+                  onMouseDown={(e) => { e.preventDefault(); choose(i) }}
+                  onMouseEnter={() => setActive(i)}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${i === active ? 'bg-primary-wash text-primary' : 'hover:bg-bg-sunken'}`}>
+                  {meta.icon}
+                  <span className="min-w-0 flex-1 truncate">{s.label}</span>
+                  <span className="shrink-0 rounded-round bg-bg-sunken px-1.5 text-[10px] uppercase tracking-wide text-text-faint">{meta.tag}</span>
+                </button>
+              )
+            })}
           </div>
         )}
-        <div className="flex items-end gap-2 rounded-lg border border-border bg-bg-elev p-2 focus-within:border-primary">
+        <div className="flex items-end gap-2 rounded-lg border border-border bg-bg-elev p-2 shadow-1 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-focus/40">
           <textarea ref={ref} value={text} rows={1}
-            placeholder="Message…  (@ai for a grounded answer)"
+            placeholder="Message…  (type @ai for a grounded answer)"
             className="max-h-[200px] flex-1 resize-none bg-transparent px-2 py-1.5 text-md outline-none placeholder:text-text-faint"
             onChange={(e) => { setText(e.target.value); grow(); syncCaret() }}
             onKeyUp={syncCaret} onClick={syncCaret} onKeyDown={onKeyDown} />
           <button onClick={submit} disabled={disabled || !text.trim()}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary text-primary-fg disabled:opacity-40">
+            aria-label="Send message"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary text-primary-fg transition-transform hover:bg-primary-hover active:scale-90 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
             <SendHorizontal size={18} strokeWidth={1.75} />
           </button>
         </div>
+        <p className="mt-1 px-1 text-right text-2xs text-text-faint">
+          <kbd className="font-sans">Enter</kbd> to send · <kbd className="font-sans">Shift</kbd>+<kbd className="font-sans">Enter</kbd> for a new line
+        </p>
       </div>
     </div>
   )

@@ -127,7 +127,19 @@ export default function ThreadPage() {
         <div className="mx-auto max-w-3xl">
           {msgQuery.isLoading && <p className="text-text-muted">Loading messages…</p>}
           {!msgQuery.isLoading && live.length === 0 && (
-            <p className="py-10 text-center text-sm text-text-muted">No messages yet. Say hello 👋</p>
+            <div className="flex flex-col items-center gap-2 py-14 text-center">
+              <div className="grid h-12 w-12 place-items-center rounded-round bg-primary-wash text-primary">
+                <Users size={22} strokeWidth={1.6} />
+              </div>
+              <p className="font-display text-lg text-text">
+                {isGroup ? '# Group' : dmName ?? 'Conversation'}
+              </p>
+              <p className="max-w-sm text-sm text-text-muted">
+                {isGroup
+                  ? `This is the very beginning of the group chat — everyone in @${channel.username} is here. Say hello, or ask @ai a question grounded in the channel's documents.`
+                  : `This is the beginning of your conversation with ${dmName ?? 'this member'}. Messages are just between you two.`}
+              </p>
+            </div>
           )}
           {live.map((m, i) => {
             const prev = live[i - 1]
