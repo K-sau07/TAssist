@@ -50,6 +50,27 @@
   /* Shadows */
   --shadow-1: 0 1px 2px rgba(30,27,46,0.06), 0 1px 0 rgba(30,27,46,0.04);
   --shadow-2: 0 8px 32px rgba(30,27,46,0.12), 0 2px 6px rgba(30,27,46,0.08);
+
+  /* ── Glow-up tokens (05_GLOWUP_DESIGN_BIBLE §C1) — composed from the palette above ── */
+  --primary-wash:  rgba(62, 42, 147, 0.06);  /* indigo @ 6% — AI note fill / hover tint */
+  --primary-wash-strong: rgba(62, 42, 147, 0.12);
+  --primary-rule:  #3E2A93;                    /* 3px left-rule on AI notes + active rail row */
+  --focus-ring:    #3E2A93;                    /* WCAG 2.4.13 focus ring, used everywhere */
+  --grounded:      var(--tassist-primary);     /* indigo family = sourced answer */
+  --ungrounded:    var(--tassist-accent-amber);/* amber family = honest fallback, not error */
+
+  /* Deterministic avatar tints (initials tiles; hashed from displayName) */
+  --avatar-1: #6B5AC9;
+  --avatar-2: #E08A6E;
+  --avatar-3: #4FA37E;
+  --avatar-4: #C99A2E;
+  --avatar-5: #C25D6B;
+  --avatar-6: #4A34AE;
+
+  /* Motion (05_GLOWUP §F) */
+  --motion-fast: 150ms;
+  --motion-msg:  180ms;
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ── Dark mode ── warm charcoal, not cold gray; keeps the "paper at night" feel.
@@ -82,6 +103,22 @@
   /* Shadows — deeper on dark */
   --shadow-1: 0 1px 2px rgba(0,0,0,0.4), 0 1px 0 rgba(0,0,0,0.25);
   --shadow-2: 0 8px 32px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.35);
+
+  /* ── Glow-up tokens (dark) — indigo lifted to #9B87F5 so washes/rules read on charcoal ── */
+  --primary-wash:  rgba(155, 135, 245, 0.10);
+  --primary-wash-strong: rgba(155, 135, 245, 0.18);
+  --primary-rule:  #9B87F5;
+  --focus-ring:    #9B87F5;
+  --grounded:      var(--tassist-primary);
+  --ungrounded:    var(--tassist-accent-amber);
+
+  /* Avatar tints — slightly lifted for dark surfaces */
+  --avatar-1: #9B87F5;
+  --avatar-2: #F3A085;
+  --avatar-3: #86D9B0;
+  --avatar-4: #E3AC2E;
+  --avatar-5: #E2716F;
+  --avatar-6: #AC9BF8;
 
   color-scheme: dark;
 }

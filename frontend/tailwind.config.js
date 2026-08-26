@@ -23,6 +23,30 @@ export default {
         success: 'var(--tassist-success)',
         warning: 'var(--tassist-warning)',
         danger: 'var(--tassist-danger)',
+        // glow-up tokens
+        'primary-wash': 'var(--primary-wash)',
+        'primary-wash-strong': 'var(--primary-wash-strong)',
+        'primary-rule': 'var(--primary-rule)',
+        grounded: 'var(--grounded)',
+        ungrounded: 'var(--ungrounded)',
+        'avatar-1': 'var(--avatar-1)',
+        'avatar-2': 'var(--avatar-2)',
+        'avatar-3': 'var(--avatar-3)',
+        'avatar-4': 'var(--avatar-4)',
+        'avatar-5': 'var(--avatar-5)',
+        'avatar-6': 'var(--avatar-6)',
+      },
+      ringColor: {
+        focus: 'var(--focus-ring)',
+      },
+      keyframes: {
+        'msg-in': {
+          '0%': { opacity: '0', transform: 'translateY(6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'msg-in': 'msg-in var(--motion-msg) var(--ease-out)',
       },
       fontFamily: {
         display: ['Fraunces', 'Georgia', 'serif'],
