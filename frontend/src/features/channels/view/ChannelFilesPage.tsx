@@ -31,7 +31,7 @@ export default function ChannelFilesPage() {
           {files.map((f) => (
             <div key={f.fileId}
               className="flex items-center gap-3 rounded-lg border border-border bg-bg-elev px-4 py-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-bg-sunken text-primary">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary-wash text-primary">
                 <FileText size={17} strokeWidth={1.75} />
               </div>
               <span className="flex-1 truncate text-sm">{f.displayLabel}</span>

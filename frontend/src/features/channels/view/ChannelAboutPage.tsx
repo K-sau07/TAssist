@@ -28,7 +28,7 @@ export default function ChannelAboutPage() {
     <AppLayout>
       <main className="mx-auto max-w-2xl px-8 py-10">
         <div className="flex items-center gap-4">
-          <div className="grid h-16 w-16 place-items-center rounded-round bg-bg-sunken text-primary">
+          <div className="grid h-16 w-16 place-items-center rounded-lg bg-primary-wash text-primary">
             <Hash size={28} strokeWidth={1.75} />
           </div>
           <div>
