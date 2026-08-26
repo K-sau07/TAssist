@@ -13,9 +13,10 @@ const GUTTER = 44 // px — avatar column width; grouped rows indent body to mat
  * - Hover reveals an action toolbar (delete now; react/reply later).
  */
 export function MessageRow({
-  msg, grouped, canDelete, onDelete,
-}: { msg: MessageView; grouped: boolean; canDelete: boolean; onDelete: () => void }) {
+  msg, grouped, canDelete, onDelete, displayName,
+}: { msg: MessageView; grouped: boolean; canDelete: boolean; onDelete: () => void; displayName?: string }) {
   const time = new Date(msg.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  const name = displayName ?? msg.sender?.displayName ?? 'Member'
 
   if (msg.deleted) {
     return (
@@ -44,7 +45,7 @@ export function MessageRow({
       <div className="min-w-0 flex-1">
         {!grouped && (
           <div className="mb-0.5 flex items-baseline gap-2">
-            <span className="text-sm font-semibold text-text">{msg.sender?.displayName ?? 'Member'}</span>
+            <span className="text-sm font-semibold text-text">{name}</span>
             <span className="text-2xs text-text-faint">{timeAgo(msg.createdAt)}</span>
           </div>
         )}

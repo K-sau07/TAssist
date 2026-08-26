@@ -163,6 +163,7 @@ export default function ThreadPage() {
                     onDelete={() => remove(m.id)} />
                 ) : (
                   <MessageRow msg={m} grouped={grouped}
+                    displayName={!isGroup && m.sender?.userId === me?.id ? 'You' : undefined}
                     canDelete={m.sender?.userId === me?.id || isOwner}
                     onDelete={() => remove(m.id)} />
                 )}
