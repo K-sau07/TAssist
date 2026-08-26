@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Sparkles, Trash2, BookOpen, Info } from 'lucide-react'
+import { Sparkles, Trash2, BookOpen } from 'lucide-react'
 import type { MessageView, CitationView } from '@/lib/api/messaging'
 import type { SourceItem } from '@/lib/sse/types'
 import { SnippetDrawer } from '@/features/chat/components/SnippetDrawer'
@@ -8,9 +8,10 @@ import { isGroundedAi } from './logic'
 /**
  * The AI turn as a "margin note" / study annotation — the glow-up signature
  * (05_GLOWUP_DESIGN_BIBLE §B3, §D5; AI-citation canon §A2).
- * - Grounded (has sources): indigo left-rule, "grounded in N sources" eyebrow,
- *   book-passage body, numbered footnote source strip → opens the passage drawer.
- * - Fallback (no sources): honest amber treatment, never styled as a confident fact.
+ * Always the calm indigo study-card. When the answer is grounded, it shows a
+ * "grounded in N sources" eyebrow + numbered footnote chips → source passage.
+ * When it isn't (casual/conversational), it stays a clean AI reply — no sources
+ * advertised, no alarm. Sources appear only when they add value.
  */
 export function AiMarginNote({
   msg, canDelete, onDelete,
@@ -25,21 +26,14 @@ export function AiMarginNote({
 
   return (
     <div className="group relative my-2 animate-msg-in">
-      <div
-        className="rounded-lg border-l-[3px] px-4 py-3 shadow-1"
-        style={{
-          borderLeftColor: grounded ? 'var(--primary-rule)' : 'var(--ungrounded)',
-          background: grounded ? 'var(--primary-wash)' : 'color-mix(in srgb, var(--ungrounded) 8%, transparent)',
-        }}
-      >
+      <div className="rounded-lg border-l-[3px] border-l-[var(--primary-rule)] bg-primary-wash px-4 py-3 shadow-1">
         {/* eyebrow */}
         <div className="mb-1.5 flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider"
-            style={{ color: grounded ? 'var(--tassist-primary)' : 'var(--ungrounded)' }}>
-            {grounded ? <Sparkles size={12} /> : <Info size={12} />}
+          <span className="inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-primary">
+            <Sparkles size={12} />
             {grounded
               ? `AI · grounded in ${msg.citations.length} source${msg.citations.length > 1 ? 's' : ''}`
-              : 'AI · no matching source'}
+              : 'AI'}
           </span>
           <span className="text-2xs text-text-faint">{time}</span>
         </div>
@@ -49,7 +43,7 @@ export function AiMarginNote({
           {msg.content}
         </div>
 
-        {/* sources footer (grounded only) */}
+        {/* sources footer — only when grounded */}
         {grounded && (
           <div className="mt-3 border-t border-border/60 pt-2">
             <p className="mb-1.5 flex items-center gap-1 text-2xs uppercase tracking-wider text-text-faint">
