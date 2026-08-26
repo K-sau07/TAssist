@@ -617,3 +617,18 @@ Spec §16.1 describes Redis + Bucket4j for short-window rate limiting. The pom c
 **Steps 0–23 COMPLETE. TAssist MVP is built, tested, and verified.**
 
 Phase 2 backlog (from spec §21 + polish notes): richer error toasts, drag-reorder todos, code-splitting (bundle >500kB), loading skeletons pass, file detail popover, @-mention picker autocomplete, channel analytics tab (D19), embedding-based topic clustering, refresh tokens, email verification, plan tiers.
+
+---
+
+## Channel Shell refactor (03_CHANNEL_SHELL_SPEC.md) — in progress
+
+**Goal:** Slack-style unified channel navigation. Pure frontend, zero backend change. One shell (global rail + channel rail + content) entered the same way by owner + member; group room is the default surface.
+
+**Decisions:**
+- **D-CS1:** Retire the standalone Messages-overview page — the ChannelRail IS the DM/group index (Slack model). `MessagesHomePage` removed in S6.
+- **D-CS2:** Old `/app/channels/:id/manage` kept as a redirect to in-shell `/c/@handle/manage` (back-compat safety).
+- **D-CS3:** Old plural `/c/:handle/chats/:chatId` dropped; renamed to singular `/c/:handle/chat/:chatId`; all internal links updated in S5.
+- **D-CS4:** Member-facing Files section shipped as a read-only list now (expected in Slack-like channels); owner still manages files via Manage.
+- **D-CS5:** The Manage "Messages" tab added in `91c36aa` is removed — messaging now lives in the rail, not a manage tab.
+
+**Build order:** S1 shell scaffold → S2 fold Thread+AIChat → S3 About split → S4 Files+Manage → S5 rewire routes+links → S6 cleanup → S7 verify+tests → S8 commits+push. Compile-green + one commit per step.
