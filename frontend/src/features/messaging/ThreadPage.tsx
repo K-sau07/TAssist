@@ -11,9 +11,10 @@ import {
 import type { MessageView } from '@/lib/api/messaging'
 import { conversationStreamPath } from '@/lib/api/messaging'
 import { subscribeConversation } from '@/lib/sse/subscribeConversation'
-import { mergeMessage, applyDeleted } from './logic'
+import { mergeMessage, applyDeleted, groupsWith, startsNewDay, dayDividerLabel } from './logic'
 import { MessageComposer } from './MessageComposer'
-import { MessageBubble } from './MessageBubble'
+import { MessageRow } from './MessageRow'
+import { AiMarginNote } from './AiMarginNote'
 import { Users } from 'lucide-react'
 
 export default function ThreadPage() {
@@ -56,7 +57,7 @@ export default function ThreadPage() {
       conversationStreamPath(channelId, conversationId),
       {
         onMessage: (e) => {
-          setLive((cur) => mergeMessage(cur, sseToMessage(e, participants)))
+          setLive((cur) => mergeMessage(cur, sseToMessage(e, participants, me)))
           requestAnimationFrame(scrollToBottom)
         },
         onDeleted: (e) => setLive((cur) => applyDeleted(cur, e.messageId)),
@@ -66,7 +67,7 @@ export default function ThreadPage() {
       ac.signal,
     )
     return () => ac.abort()
-  }, [channelId, conversationId, participants])
+  }, [channelId, conversationId, participants, me])
 
   // Mark read on open + whenever new messages arrive.
   useEffect(() => {
@@ -123,16 +124,52 @@ export default function ThreadPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="mx-auto max-w-3xl space-y-1">
+        <div className="mx-auto max-w-3xl">
           {msgQuery.isLoading && <p className="text-text-muted">Loading messages…</p>}
           {!msgQuery.isLoading && live.length === 0 && (
-            <p className="py-10 text-center text-sm text-text-muted">No messages yet. Say hello 👋</p>
+            <div className="flex flex-col items-center gap-2 py-14 text-center">
+              <div className="grid h-12 w-12 place-items-center rounded-round bg-primary-wash text-primary">
+                <Users size={22} strokeWidth={1.6} />
+              </div>
+              <p className="font-display text-lg text-text">
+                {isGroup ? '# Group' : dmName ?? 'Conversation'}
+              </p>
+              <p className="max-w-sm text-sm text-text-muted">
+                {isGroup
+                  ? `This is the very beginning of the group chat — everyone in @${channel.username} is here. Say hello, or ask @ai a question grounded in the channel's documents.`
+                  : `This is the beginning of your conversation with ${dmName ?? 'this member'}. Messages are just between you two.`}
+              </p>
+            </div>
           )}
-          {live.map((m) => (
-            <MessageBubble key={m.id} msg={m} mine={m.sender?.userId === me?.id}
-              canDelete={m.sender?.userId === me?.id || isOwner}
-              onDelete={() => remove(m.id)} />
-          ))}
+          {live.map((m, i) => {
+            const prev = live[i - 1]
+            const newDay = startsNewDay(prev, m)
+            // a day break always resets grouping
+            const grouped = !newDay && groupsWith(prev, m)
+            return (
+              <div key={m.id}>
+                {newDay && (
+                  <div className="my-3 flex items-center gap-3" role="separator">
+                    <span className="h-px flex-1 bg-border" />
+                    <span className="rounded-round border border-border bg-bg px-2.5 py-0.5 text-2xs font-medium text-text-muted">
+                      {dayDividerLabel(m.createdAt)}
+                    </span>
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+                )}
+                {m.senderKind === 'AI' ? (
+                  <AiMarginNote msg={m}
+                    canDelete={m.sender?.userId === me?.id || isOwner}
+                    onDelete={() => remove(m.id)} />
+                ) : (
+                  <MessageRow msg={m} grouped={grouped}
+                    displayName={m.sender?.userId === me?.id ? 'You' : undefined}
+                    canDelete={m.sender?.userId === me?.id || isOwner}
+                    onDelete={() => remove(m.id)} />
+                )}
+              </div>
+            )
+          })}
           <div ref={bottomRef} />
         </div>
       </div>
@@ -151,9 +188,17 @@ export default function ThreadPage() {
 function sseToMessage(
   e: { messageId: string; senderKind: 'HUMAN' | 'AI'; senderId: string | null; content: string; createdAt: string },
   participants: Array<{ userId: string; displayName: string }>,
+  me: { id: string; displayName: string } | null,
 ): MessageView {
   const sender = e.senderId
-    ? { userId: e.senderId, displayName: participants.find((p) => p.userId === e.senderId)?.displayName ?? 'Member' }
+    ? {
+        userId: e.senderId,
+        // My own echoed message isn't in `participants` (that list excludes me),
+        // so resolve my name from the session first, then participants, then a last resort.
+        displayName: e.senderId === me?.id
+          ? me.displayName
+          : participants.find((p) => p.userId === e.senderId)?.displayName ?? 'Member',
+      }
     : null
   return {
     id: e.messageId,

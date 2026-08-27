@@ -30,17 +30,18 @@ export default function MyChannelsPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             {channels.map((c) => (
               <Link key={c.id} to={`/c/@${c.username}`}
-                className="flex items-start gap-3 rounded-lg border border-border bg-bg-elev p-5 shadow-1 transition-transform hover:-translate-y-0.5 hover:shadow-2">
-                <div className="grid h-11 w-11 place-items-center rounded-round bg-bg-sunken text-primary">
-                  <Hash size={20} strokeWidth={1.75} />
+                className="group flex items-start gap-3 rounded-lg border border-border bg-bg-elev p-5 shadow-1 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-primary-wash text-primary">
+                  <Hash size={20} strokeWidth={1.9} />
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{c.displayName}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-display text-lg leading-tight">{c.displayName}</p>
                   <p className="text-sm text-text-muted">@{c.username}</p>
-                  <span className="mt-1 inline-block rounded-round bg-bg-sunken px-2 py-0.5 text-xs text-text-faint">
+                  <span className="mt-2 inline-block rounded-round bg-bg-sunken px-2 py-0.5 text-2xs uppercase tracking-wide text-text-faint">
                     {c.visibility.toLowerCase()}
                   </span>
                 </div>
+                <span className="text-text-faint transition-colors group-hover:text-primary">→</span>
               </Link>
             ))}
           </div>

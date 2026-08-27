@@ -37,17 +37,20 @@ export default function DiscoverChannelsPage() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {shown.map((c) => (
                   <Link key={c.id} to={`/c/@${c.username}`}
-                    className="rounded-lg border border-border bg-bg-elev p-5 shadow-1 transition-transform hover:-translate-y-0.5 hover:shadow-2">
+                    className="group flex flex-col rounded-lg border border-border bg-bg-elev p-5 shadow-1 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
                     <div className="flex items-center gap-3">
-                      <div className="grid h-10 w-10 place-items-center rounded-round bg-bg-sunken text-primary">
-                        <Hash size={18} strokeWidth={1.75} />
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-primary-wash text-primary">
+                        <Hash size={18} strokeWidth={1.9} />
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{c.displayName}</p>
+                        <p className="truncate font-display text-lg leading-tight">{c.displayName}</p>
                         <p className="text-sm text-text-muted">@{c.username}</p>
                       </div>
                     </div>
-                    {c.description && <p className="mt-3 line-clamp-2 text-sm text-text-muted">{c.description}</p>}
+                    {c.description && <p className="mt-3 line-clamp-2 flex-1 text-sm text-text-muted">{c.description}</p>}
+                    <span className="mt-3 text-2xs font-semibold uppercase tracking-wider text-text-faint transition-colors group-hover:text-primary">
+                      View channel →
+                    </span>
                   </Link>
                 ))}
               </div>

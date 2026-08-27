@@ -632,3 +632,26 @@ Phase 2 backlog (from spec §21 + polish notes): richer error toasts, drag-reord
 - **D-CS5:** The Manage "Messages" tab added in `91c36aa` is removed — messaging now lives in the rail, not a manage tab.
 
 **Build order:** S1 shell scaffold → S2 fold Thread+AIChat → S3 About split → S4 Files+Manage → S5 rewire routes+links → S6 cleanup → S7 verify+tests → S8 commits+push. Compile-green + one commit per step.
+
+---
+
+## Glow-up (05_GLOWUP_DESIGN_BIBLE) — COMPLETE on branch `glowup`
+
+Research-grounded visual + interaction redesign. Pure frontend, zero backend/API/behaviour change. Thesis: reject the AI-SaaS dark-neon default (like Slack rejected corporate blue) — lean into warm-paper + indigo "study space" identity. Signature = the AI answer as a "margin note" with footnote citations.
+
+**Branch strategy:** all work on `glowup`; `main` frozen at e0ac645 (known-good). Merge only on approval; else abandon the branch and `main` is untouched.
+
+**Steps shipped (each: compile-green + Vitest + one commit + pushed):**
+- **G-UI0** (61b8499) — design substrate: new tokens light+dark (primary-wash/rule, focus-ring, grounded=indigo/ungrounded=amber, 6 avatar tints, motion durations), Tailwind mappings, msg-in keyframe, `lib/ui/avatar.ts` (initials + stable hash + tint) + 10 tests.
+- **G-UI1** (505f04b) — Slack-style message rows: left-aligned, avatar gutter, author grouping (`groupsWith`), day dividers (`dayDividerLabel`/`startsNewDay`), hover toolbar; replaced bubbles. +11 tests.
+- **G-UI2** (5dc1e42) — AI margin-note signature: indigo left-rule card, "grounded in N sources" eyebrow, book-passage body, numbered footnote source strip → SnippetDrawer; honest amber fallback (`isGroundedAi`). +3 tests.
+- **G-UI3** (9a2a878) — composer (paper-elevated, focus ring, kbd hint, restyled @-dropdown) + warm context-aware empty states.
+- **G-UI4** (7001b0f) — living channel rail: bold-unread rows, 3px indigo active bar, deterministic avatar DMs, section headers, indigo badges.
+- **G-UI5** (e453f24) — channels breadth: Discover/MyChannels bento tiles + About/Files glyph harmonization.
+- **G-UI6** (79dd210) — auth brand-split (form + paper brand panel with margin-note preview); upgrades Login + Signup.
+- **G-UI7** (c391a35) — LeftRail section-header harmonization + Bloops-lite unread-dot slot (renders once GET /api/me/unread exists); warm on-brand 404.
+- **G-UI8** (59dd4a1) — cinematic landing page: MarginNoteDemo hero (self-playing, reduced-motion-safe), problem→solution, numbered how-it-works, grounded-not-guessed block, bento grid; removed old file-mascot animation.
+- **G-UI9** (544ac4d) — motion + a11y pass: framer-motion gated on useReducedMotion, focus rings verified, ARIA roles.
+- **G-UI10** — final verify: typecheck ✓, 59 tests ✓, build ✓. BUILD_LOG updated.
+
+**State:** 59 frontend tests green. Backend untouched (still 265). Awaiting review → merge `glowup`→`main` or iterate.

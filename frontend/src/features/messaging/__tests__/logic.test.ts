@@ -95,3 +95,83 @@ describe('unreadFor', () => {
     expect(unreadFor(withDel, 'me', '2026-01-01T00:00:00Z')).toBe(1)
   })
 })
+
+import { groupsWith, dayDividerLabel, startsNewDay } from '../logic'
+
+describe('groupsWith', () => {
+  const base = (over: Partial<MessageView>): MessageView => msg(over)
+  it('groups same human sender within 5 min', () => {
+    const a = base({ id: 'a', sender: { userId: 'u1', displayName: 'A' }, createdAt: '2026-01-01T00:00:00Z' })
+    const b = base({ id: 'b', sender: { userId: 'u1', displayName: 'A' }, createdAt: '2026-01-01T00:03:00Z' })
+    expect(groupsWith(a, b)).toBe(true)
+  })
+  it('does not group across the time window', () => {
+    const a = base({ id: 'a', sender: { userId: 'u1', displayName: 'A' }, createdAt: '2026-01-01T00:00:00Z' })
+    const b = base({ id: 'b', sender: { userId: 'u1', displayName: 'A' }, createdAt: '2026-01-01T00:10:00Z' })
+    expect(groupsWith(a, b)).toBe(false)
+  })
+  it('does not group different senders', () => {
+    const a = base({ id: 'a', sender: { userId: 'u1', displayName: 'A' } })
+    const b = base({ id: 'b', sender: { userId: 'u2', displayName: 'B' } })
+    expect(groupsWith(a, b)).toBe(false)
+  })
+  it('never groups AI turns', () => {
+    const a = base({ id: 'a', senderKind: 'AI', sender: null })
+    const b = base({ id: 'b', senderKind: 'AI', sender: null })
+    expect(groupsWith(a, b)).toBe(false)
+  })
+  it('no previous → not grouped', () => {
+    expect(groupsWith(undefined, base({ id: 'a' }))).toBe(false)
+  })
+  it('deleted messages do not group', () => {
+    const a = base({ id: 'a', sender: { userId: 'u1', displayName: 'A' }, deleted: true })
+    const b = base({ id: 'b', sender: { userId: 'u1', displayName: 'A' } })
+    expect(groupsWith(a, b)).toBe(false)
+  })
+})
+
+describe('dayDividerLabel', () => {
+  const now = new Date('2026-03-05T12:00:00Z')
+  it('Today / Yesterday', () => {
+    expect(dayDividerLabel('2026-03-05T09:00:00Z', now)).toBe('Today')
+    expect(dayDividerLabel('2026-03-04T09:00:00Z', now)).toBe('Yesterday')
+  })
+  it('same-year date without year', () => {
+    expect(dayDividerLabel('2026-03-01T09:00:00Z', now)).toMatch(/Mar 1/)
+  })
+  it('prior-year date includes year', () => {
+    expect(dayDividerLabel('2025-12-25T09:00:00Z', now)).toMatch(/2025/)
+  })
+})
+
+describe('startsNewDay', () => {
+  it('true when no previous', () => {
+    expect(startsNewDay(undefined, msg({ id: 'a' }))).toBe(true)
+  })
+  it('true across a day boundary, false within a day', () => {
+    // Local-time (no Z) so the day boundary is unambiguous regardless of runner TZ.
+    const d1 = msg({ id: 'a', createdAt: '2026-03-04T23:00:00' })
+    const d2 = msg({ id: 'b', createdAt: '2026-03-05T01:00:00' })
+    const d3 = msg({ id: 'c', createdAt: '2026-03-05T02:00:00' })
+    expect(startsNewDay(d1, d2)).toBe(true)
+    expect(startsNewDay(d2, d3)).toBe(false)
+  })
+})
+
+import { isGroundedAi } from '../logic'
+
+describe('isGroundedAi', () => {
+  it('grounded when AI has citations', () => {
+    expect(isGroundedAi(msg({ senderKind: 'AI', sender: null, citations: [
+      { fileId: 'f', chunkId: 'c', displayLabel: 'Lecture 3', snippet: 's' },
+    ] }))).toBe(true)
+  })
+  it('fallback when AI has no citations', () => {
+    expect(isGroundedAi(msg({ senderKind: 'AI', sender: null, citations: [] }))).toBe(false)
+  })
+  it('human messages are never "grounded AI"', () => {
+    expect(isGroundedAi(msg({ senderKind: 'HUMAN', citations: [
+      { fileId: 'f', chunkId: 'c', displayLabel: 'x', snippet: null },
+    ] }))).toBe(false)
+  })
+})
