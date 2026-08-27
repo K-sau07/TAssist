@@ -78,7 +78,21 @@ Add/adjust backend tests so retrieval behavior is pinned (e.g. floor filtering, 
 
 ## 8. Measurements (filled during Phase B)
 
-*(empty until we run it — numbers go here before any tuning)*
+**Run:** 2026-08-27, channel csye7230, Gartner "Innovation Insight for Performance Engineering" PDF. Backend on `retrieval-tuning` (Phase A diagnostics), dev profile DEBUG.
+
+| Question | topK/filled | chunk score range | distinct sections retrieved | citations emitted |
+|---|---|---|---|---|
+| key takeaway | 6/6 | 0.627–0.675 | yes (ord 8,14,6,0,15,1) | 2 |
+| risks | 6/6 | 0.750–0.857 | risks concentrated in ord=9 | 1 (correct — content is in one chunk) |
+| adoption + leaders (asked together) | 6/6 | 0.739–0.791 | yes (ord 8,10,1,4,9,11) | 3 |
+
+**Findings:**
+1. **Retrieval is healthy.** topK=6 is always filled; every chunk scores 0.62–0.86 — far above the 0.4 floor. Nothing is being cut. The *correct* chunks surface (e.g. the "5% to 20%" adoption stat came in via ord=11; recommendations via ord=1).
+2. **The floor and topK need NO change.** Lowering the floor would only add noise; raising topK is unnecessary since the relevant chunks are already in the top 6. Chunk size is fine.
+3. **Citation count tracks content distribution, not a bug.** 1 citation when the answer's content is concentrated in one chunk (risks), 3 when spread across sections (leaders). The "key takeaway" citing 2 is a mild under-cite on synthesis but defensible (a summary leans on intro/recommendations). Not worth a prompt change now — over-citing risk outweighs benefit.
+4. **The "duplicate file" was a misread — no data bug.** DB check: the channel has exactly 2 distinct files (`1resume.pdf`, the Gartner article), each once. `candidates=2` is correct (two real files). The repeated "Assignment 3…" link under an answer is a **frontend cosmetic issue**: when several citations come from the *same file* (distinct chunks, same `displayLabel`), the citation strip renders the filename once per citation instead of de-duping by label. Fix belongs on the **frontend (`glowup`)** — de-dupe the sources strip by display label (show each unique source once). No backend/retrieval change.
+
+**Decision (Saurabh):** record findings, make NO retrieval-algorithm changes (RAG is healthy). The only real issue is the cosmetic citation-strip repetition, which is a frontend fix for the `glowup` branch — not a backend/retrieval change.
 
 ## 9. Acceptance criteria
 
