@@ -4,6 +4,7 @@ import type { MessageView, CitationView } from '@/lib/api/messaging'
 import type { SourceItem } from '@/lib/sse/types'
 import { SnippetDrawer } from '@/features/chat/components/SnippetDrawer'
 import { Markdown } from '@/design/components/Markdown'
+import { dedupeCitations } from '@/lib/ui/citations'
 import { isGroundedAi } from './logic'
 
 /**
@@ -19,6 +20,8 @@ export function AiMarginNote({
 }: { msg: MessageView; canDelete: boolean; onDelete: () => void }) {
   const [source, setSource] = useState<SourceItem | null>(null)
   const grounded = isGroundedAi(msg)
+  // Collapse citations from the same file to one entry (retrieval Phase B finding).
+  const sources = dedupeCitations(msg.citations)
 
   const open = (c: CitationView, i: number) =>
     setSource({ num: i + 1, fileId: c.fileId, label: c.displayLabel, snippet: c.snippet ?? '', similarity: null })
@@ -33,7 +36,7 @@ export function AiMarginNote({
           <span className="inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider text-primary">
             <Sparkles size={12} />
             {grounded
-              ? `AI · grounded in ${msg.citations.length} source${msg.citations.length > 1 ? 's' : ''}`
+              ? `AI · grounded in ${sources.length} source${sources.length > 1 ? 's' : ''}`
               : 'AI'}
           </span>
           <span className="text-2xs text-text-faint">{time}</span>
@@ -49,7 +52,7 @@ export function AiMarginNote({
               <BookOpen size={11} /> Sources
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {msg.citations.map((c, i) => (
+              {sources.map((c, i) => (
                 <button key={c.chunkId + i} onClick={() => open(c, i)}
                   title={c.snippet ? c.snippet.slice(0, 200) : c.displayLabel}
                   className="group/cit inline-flex items-center gap-1.5 rounded-md border border-border bg-bg-elev px-2 py-1 text-xs text-text transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
