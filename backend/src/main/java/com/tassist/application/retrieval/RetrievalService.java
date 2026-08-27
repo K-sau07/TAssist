@@ -102,6 +102,28 @@ public class RetrievalService implements RetrievalUseCase {
         List<ScoredChunk> chunkHits = chunks.searchSimilar(queryEmb, candidates, topK);
         List<ScoredSheet> sheetHits = spreadsheets.searchSimilarSheets(queryEmb, candidates, TOPK_SHEETS);
 
+        // ── Phase A diagnostics (06_RETRIEVAL_TUNING_SPEC): read-only. Logs every raw hit's
+        // similarity BEFORE the floor, so we can see where chunks land vs SIMILARITY_FLOOR and
+        // whether topK is even being filled. DEBUG-level so it's silent in normal operation. ──
+        if (log.isDebugEnabled()) {
+            log.debug("retrieve-diag: q=\"{}\" scope={} candidates={} topK={} rawTextHits={} floor={}",
+                truncate(q.question(), 80), q.scope(), candidates.size(), topK, chunkHits.size(), SIMILARITY_FLOOR);
+            int rank = 1;
+            for (ScoredChunk h : chunkHits) {
+                String page = h.chunk().metadata().getOrDefault("page",
+                    h.chunk().metadata().getOrDefault("heading", "-"));
+                log.debug("  #{} sim={} {}file={} ord={} page/head={} preview=\"{}\"",
+                    rank++, String.format("%.4f", h.similarity()),
+                    h.similarity() >= SIMILARITY_FLOOR ? "PASS " : "cut  ",
+                    h.chunk().fileId().value(), h.chunk().ordinal(), page,
+                    truncate(h.chunk().text(), 60));
+            }
+            for (ScoredSheet s : sheetHits) {
+                log.debug("  sheet sim={} {}", String.format("%.4f", s.similarity()),
+                    s.similarity() >= SIMILARITY_FLOOR ? "PASS" : "cut");
+            }
+        }
+
         // 7. Threshold at 0.4.
         List<TextHit> textHits = chunkHits.stream()
             .filter(h -> h.similarity() >= SIMILARITY_FLOOR)
@@ -155,5 +177,12 @@ public class RetrievalService implements RetrievalUseCase {
             }
         }
         return ok;
+    }
+
+    /** Compact a string for single-line diagnostic logs. */
+    private static String truncate(String s, int max) {
+        if (s == null) return "";
+        String flat = s.replaceAll("\\s+", " ").strip();
+        return flat.length() <= max ? flat : flat.substring(0, max) + "…";
     }
 }
