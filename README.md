@@ -4,6 +4,12 @@ A personal AI assistant that answers questions **grounded in your own uploaded d
 never invented, always cited. Optionally publish a curated, private **Q&A channel** over a
 subset of your files so approved members can ask questions without ever seeing the files.
 
+**[Live demo →](https://t-assist.vercel.app)**  ·  API: [tassist-api.onrender.com](https://tassist-api.onrender.com/actuator/health)
+
+> Hosted on free tiers: the API sleeps after ~15 minutes idle, so the first request after a
+> quiet spell takes about 50 seconds to wake it. Everything after that is fast.
+
+
 Two products in one account:
 
 - **Private library** — an Obsidian-style document vault with an LLM on top. Upload PDFs,
