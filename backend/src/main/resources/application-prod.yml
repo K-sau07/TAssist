@@ -68,9 +68,10 @@ tassist:
       model: ${TASSIST_CHAT_MODEL:claude-haiku-4-5}
       max-tokens: ${TASSIST_CHAT_MAX_TOKENS:1024}
   ocr:
-    # Debian package layout, not Homebrew's.
+    # Debian package layout, not Homebrew's. The lib path is a symlink created
+    # in the Dockerfile so it does not hardcode the architecture directory.
     tessdata-path: ${TASSIST_TESSDATA:/usr/share/tesseract-ocr/5/tessdata}
-    native-lib-path: ${TASSIST_TESS_LIB:/usr/lib/x86_64-linux-gnu}
+    native-lib-path: ${TASSIST_TESS_LIB:/opt/tesseract/lib}
 
 logging:
   level:
