@@ -1,0 +1,78 @@
+# Production profile. Everything sensitive comes from the environment.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      # One Neon database is shared across projects, so pin this service to its
+      # own schema. Set it on the pool, not via currentSchema in the JDBC URL,
+      # and point DB_URL at Neon's DIRECT endpoint (host without -pooler): the
+      # pooled endpoint drops the SET search_path per transaction.
+      schema: ${DB_SCHEMA:tassist}
+      maximum-pool-size: 5
+      minimum-idle: 1
+
+  flyway:
+    enabled: true
+    schemas: ${DB_SCHEMA:tassist}
+    default-schema: ${DB_SCHEMA:tassist}
+    create-schemas: true
+
+  data:
+    redis:
+      # Upstash speaks TLS, so the rediss:// URL is used rather than host/port.
+      url: ${REDIS_URL}
+
+server:
+  port: ${PORT:8080}
+
+management:
+  server:
+    # Render routes a single port, so actuator cannot sit on its own. Without
+    # this the health check would never be reachable and every deploy would be
+    # marked unhealthy.
+    port: ${PORT:8080}
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  endpoint:
+    health:
+      show-details: never
+
+tassist:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  frontend-url: ${TASSIST_FRONTEND_URL:http://localhost:5173}
+  jwt:
+    secret: ${TASSIST_JWT_SECRET}
+    ttl-hours: ${TASSIST_JWT_TTL_HOURS:24}
+  storage:
+    # Ephemeral on Render's free tier: wiped on restart and on cold start, so
+    # uploaded documents do not persist. Object storage is the fix if this
+    # needs to hold real data.
+    dir: ${TASSIST_STORAGE_DIR:/tmp/tassist-storage}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:}
+  embedding:
+    voyage:
+      api-key: ${VOYAGE_API_KEY:}
+      model: ${VOYAGE_MODEL:voyage-3.5}
+      dimension: ${VOYAGE_DIMENSION:1024}
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      model: ${TASSIST_CHAT_MODEL:claude-haiku-4-5}
+      max-tokens: ${TASSIST_CHAT_MAX_TOKENS:1024}
+  ocr:
+    # Debian package layout, not Homebrew's.
+    tessdata-path: ${TASSIST_TESSDATA:/usr/share/tesseract-ocr/5/tessdata}
+    native-lib-path: ${TASSIST_TESS_LIB:/usr/lib/x86_64-linux-gnu}
+
+logging:
+  level:
+    root: INFO
+    com.tassist: INFO
