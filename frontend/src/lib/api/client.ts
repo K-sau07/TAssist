@@ -1,5 +1,6 @@
 // Base fetch wrapper: injects auth header, maps errors to a typed ApiError (spec §13, §17.4).
 import { useAuthStore } from '@/lib/auth/store'
+import { apiUrl } from './baseUrl';
 
 export class ApiError extends Error {
   status: number
@@ -37,7 +38,7 @@ export async function apiFetch<T = unknown>(path: string, opts: Options = {}): P
     }
   }
 
-  const res = await fetch(`/api${path}`, { ...rest, headers: h, body: payload })
+  const res = await fetch(apiUrl(path), { ...rest, headers: h, body: payload })
 
   if (res.status === 401 && auth) {
     // token invalid/expired — clear and let guards bounce to /login

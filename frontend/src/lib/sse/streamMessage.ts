@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/lib/auth/store'
 import type { StreamHandlers } from './types'
+import { apiUrl } from '../api/baseUrl';
 
 /**
  * POST to an SSE endpoint and dispatch events to handlers (§13.4).
@@ -14,7 +15,7 @@ export async function streamMessage(
   const token = useAuthStore.getState().token
   let res: Response
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(apiUrl(path), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

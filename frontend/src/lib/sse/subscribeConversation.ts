@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/lib/auth/store'
+import { apiUrl } from '../api/baseUrl';
 
 // Realtime conversation events (02_MESSAGING_SPEC §8). The messaging stream is a
 // long-lived GET (unlike the POST RAG token stream) that pushes message/deleted/read
@@ -35,7 +36,7 @@ export async function subscribeConversation(
   const token = useAuthStore.getState().token
   let res: Response
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(apiUrl(path), {
       method: 'GET',
       headers: {
         Accept: 'text/event-stream',
